@@ -9,7 +9,7 @@ const INIT_WIDTH: u32 = 1280;
 const INIT_HEIGHT: u32 = 720;
 
 const CAMERA_SPEED: f32 = 4.0;
-const CAMERA_SENSITIVITY: f32 = 2.0;
+const CAMERA_SENSITIVITY: f32 = 8.0;
 
 type Vertex = [f32; 6];
 const VERTICES: [Vertex; 8] = [
@@ -160,7 +160,7 @@ fn main() {
     let mut view = ng::Mat4::identity();
 
     let mut model = ng::Mat4::identity();
-    model = ng::scale(&view, &ng::Vec3::new(0.5, 0.5, 0.5));
+    model = ng::scale(&model, &ng::Vec3::new(0.5, 0.5, 0.5));
 
     // Camera
     let mut camera_pos = ng::Vec3::new(0.0, 0.0, 3.0);
@@ -195,6 +195,13 @@ fn main() {
                     yaw += offset.0;
                     pitch += offset.1;
                     cur_last_pos = (pos_x as f32, pos_y as f32);
+
+                    if pitch > 89.9 {
+                        pitch = 89.9;
+                    }
+                    if pitch < -89.9 {
+                        pitch = -89.9;
+                    }
 
                     let direction = ng::Vec3::new(
                         f32::cos(deg_to_rad(yaw)) * f32::cos(deg_to_rad(pitch)),
