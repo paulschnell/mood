@@ -1,7 +1,8 @@
-pub mod camera;
+mod camera;
 mod renderable;
 mod shader;
 
+use crate::graphics::renderable::Renderable;
 use crate::utils::Rect;
 use nalgebra_glm as ng;
 
@@ -10,6 +11,8 @@ pub struct Graphics {
     projection: ng::Mat4,
     pub shaders: shader::Shader,
     pub camera: camera::Camera,
+
+    cube: renderable::cube::Cube,
 }
 
 impl Graphics {
@@ -32,16 +35,22 @@ impl Graphics {
                 "assets/shaders/shader.glsl.frag",
             ),
             camera: camera::Camera::new(),
+
+            cube: renderable::cube::Cube::new(),
         }
     }
 
-    pub fn update(&self) {
+    pub fn update(&mut self, delta_time: f32) {
+        self.cube.update(delta_time);
+
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
         self.shaders.use_program();
         self.shaders.set_mat4("projection", &self.projection);
         self.shaders.set_mat4("view", &self.camera.view());
+
+        self.cube.render(&self.shaders);
     }
 
     pub fn destroy(&self) {}
@@ -52,5 +61,10 @@ impl Graphics {
         }
         self.screen_size.right = width;
         self.screen_size.bottom = height;
+    }
+
+    pub fn handle_input(&mut self, delta_time: f32, window: &glfw::Window) {
+        self.camera
+            .track_input(&window, crate::CAMERA_SPEED * delta_time as f32);
     }
 }
