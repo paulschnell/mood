@@ -10,8 +10,8 @@ use glfw::Context;
 const INIT_WIDTH: u32 = 1280;
 const INIT_HEIGHT: u32 = 720;
 
-const CAMERA_SPEED: f32 = 4.0;
-const CAMERA_SENSITIVITY: f32 = 8.0;
+const CAMERA_SPEED: f32 = 2.5;
+const CAMERA_SENSITIVITY: f32 = 7.0;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed on initilizing glfw.");

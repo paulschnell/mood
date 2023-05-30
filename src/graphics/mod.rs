@@ -12,14 +12,18 @@ pub struct Graphics {
     pub shaders: shader::Shader,
     pub camera: camera::Camera,
 
-    cube: renderable::cube::Cube,
+    map: renderable::map::Map,
 }
 
 impl Graphics {
     pub fn init() -> Self {
         unsafe {
+            // gl::ClearColor(1.0, 1.0, 1.0, 1.0);
             gl::ClearColor(18.0 / 255.0, 18.0 / 255.0, 18.0 / 255.0, 1.0);
             gl::Enable(gl::DEPTH_TEST);
+
+            gl::Enable(gl::CULL_FACE);
+            gl::CullFace(gl::BACK);
         }
 
         Graphics {
@@ -36,12 +40,12 @@ impl Graphics {
             ),
             camera: camera::Camera::new(),
 
-            cube: renderable::cube::Cube::new(),
+            map: renderable::map::Map::new("test.json"),
         }
     }
 
     pub fn update(&mut self, delta_time: f32) {
-        self.cube.update(delta_time);
+        self.map.update(delta_time);
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -50,7 +54,7 @@ impl Graphics {
         self.shaders.set_mat4("projection", &self.projection);
         self.shaders.set_mat4("view", &self.camera.view());
 
-        self.cube.render(&self.shaders);
+        self.map.render(&self.shaders);
     }
 
     pub fn destroy(&self) {}

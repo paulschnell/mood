@@ -2,6 +2,7 @@ use nalgebra_glm as ng;
 
 pub mod cube;
 pub mod gui;
+pub mod map;
 
 pub trait Renderable {
     fn create(&mut self);
