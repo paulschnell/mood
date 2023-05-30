@@ -45,36 +45,57 @@ impl Map {
                 n_corners += 1;
             }
 
-            let mut gates: Vec<u32> = Vec::new();
+            let mut gates: Vec<(u32, u32)> = Vec::new(); // wall index, sector
             for _ in 0..sector["gates"].len() {
-                gates.insert(0, sector["gates"].pop().as_u32().unwrap());
+                let gate = sector["gates"].pop();
+                gates.insert(0, (gate[0].as_u32().unwrap(), gate[1].as_u32().unwrap()));
             }
             gates.sort();
 
-            // Create indices for sector
             let offset = new.vertices.len() as u32 - n_corners * 2;
-            for i in 0..(n_corners - 1) {
-                if !gates.contains(&i) {
-                    new.indices.push(offset + i * 2);
-                    new.indices.push(offset + i * 2 + 1);
-                    new.indices.push(offset + i * 2 + 2);
-                    new.indices.push(offset + i * 2 + 1);
-                    new.indices.push(offset + i * 2 + 3);
-                    new.indices.push(offset + i * 2 + 2);
+
+            {
+                let mut gates_index: Vec<u32> = Vec::new();
+                for ele in gates {
+                    gates_index.push(ele.0.clone());
+                }
+
+                // Create indices for sector
+                for i in 0..(n_corners - 1) {
+                    if !gates_index.contains(&i) {
+                        new.indices.push(offset + i * 2);
+                        new.indices.push(offset + i * 2 + 1);
+                        new.indices.push(offset + i * 2 + 2);
+                        new.indices.push(offset + i * 2 + 1);
+                        new.indices.push(offset + i * 2 + 3);
+                        new.indices.push(offset + i * 2 + 2);
+                    } else {
+                        // TODO: Create indices between sectors in gates
+                    }
+                }
+                // between last and first element
+                if !gates_index.contains(&(n_corners - 1)) {
+                    new.indices.push(offset + (n_corners - 1) * 2);
+                    new.indices.push(offset + (n_corners - 1) * 2 + 1);
+                    new.indices.push(offset);
+                    new.indices.push(offset + (n_corners - 1) * 2 + 1);
+                    new.indices.push(offset + 1);
+                    new.indices.push(offset);
                 }
             }
-            // between last and first element
-            if !gates.contains(&(n_corners - 1)) {
-                new.indices.push(offset + (n_corners - 1) * 2);
-                new.indices.push(offset + (n_corners - 1) * 2 + 1);
+
+            // Floor and ceiling indices
+            for i in 0..(n_corners - 2) {
                 new.indices.push(offset);
-                new.indices.push(offset + (n_corners - 1) * 2 + 1);
+                new.indices.push(offset + i * 2 + 2);
+                new.indices.push(offset + i * 2 + 4);
+            }
+            for i in 0..(n_corners - 2) {
                 new.indices.push(offset + 1);
-                new.indices.push(offset);
+                new.indices.push(offset + i * 2 + 5);
+                new.indices.push(offset + i * 2 + 3);
             }
         }
-
-        // Create indices between sectors in gates
 
         new.create();
 
