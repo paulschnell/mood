@@ -1,67 +1,96 @@
 extern crate json;
+extern crate rand;
 
 use crate::graphics::renderable::{Model, Renderable};
 use crate::graphics::shader::Shader;
+use crate::mapdata::{Data, Gate, Sector};
+
+use rand::Rng;
 
 type Vertex = [f32; 6];
 
 pub struct Map {
     model: Model,
-    path: String,
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
-    name: String,
-    description: String,
+    data: Data,
 }
 
 impl Map {
     pub fn new(path: &str) -> Self {
         let mut new = Map {
             model: Model::default(),
-            path: format!("assets/maps/{}", path),
             vertices: Vec::new(),
             indices: Vec::new(),
-            name: String::new(),
-            description: String::new(),
+            data: Data::default(),
         };
 
-        let input = std::fs::read_to_string(&new.path).expect("Could not find file '{new.path}'");
+        new.data.path = format!("assets/maps/{path}");
+
+        let input =
+            std::fs::read_to_string(&new.data.path).expect("Could not find file '{new.path}'");
         let mut map_json = json::parse(&input).unwrap();
 
-        new.name = map_json["name"].take_string().unwrap();
-        new.description = map_json["description"].take_string().unwrap();
+        new.data.name = map_json["name"].take_string().unwrap();
+        new.data.description = map_json["description"].take_string().unwrap();
 
         for sector in map_json["sectors"].members_mut() {
             let floor = sector["floor"].as_f32().unwrap();
             let ceiling = sector["ceiling"].as_f32().unwrap();
 
+            let mut data = Sector {
+                floor: floor.clone(),
+                ceiling: ceiling.clone(),
+                corners: Vec::new(),
+                gates: Vec::new(),
+            };
+
             // Create vertices on floor and ceiling level in current sector
-            let mut n_corners = 0;
             for corner in sector["corners"].members_mut() {
                 let z = -1.0 * corner.pop().as_f32().unwrap();
                 let x = corner.pop().as_f32().unwrap();
-                new.vertices.push([x, floor - 0.5, z, 0.3, 0.3, 0.3]); // floor
-                new.vertices.push([x, ceiling - 0.5, z, 0.7, 0.7, 0.7]); // ceiling
-                n_corners += 1;
+                new.vertices.push([
+                    x,
+                    floor - 0.5,
+                    z,
+                    rand::thread_rng().gen_range(0.0..=1.0),
+                    rand::thread_rng().gen_range(0.0..=1.0),
+                    rand::thread_rng().gen_range(0.0..=1.0),
+                ]); // floor
+                new.vertices.push([
+                    x,
+                    ceiling - 0.5,
+                    z,
+                    rand::thread_rng().gen_range(0.0..=1.0),
+                    rand::thread_rng().gen_range(0.0..=1.0),
+                    rand::thread_rng().gen_range(0.0..=1.0),
+                ]); // ceiling
+
+                data.corners.push((x, z).clone());
             }
 
-            let mut gates: Vec<(u32, u32)> = Vec::new(); // wall index, sector
             for _ in 0..sector["gates"].len() {
                 let gate = sector["gates"].pop();
-                gates.insert(0, (gate[0].as_u32().unwrap(), gate[1].as_u32().unwrap()));
+                data.gates.insert(
+                    0,
+                    Gate {
+                        own: gate["own"].as_u32().unwrap(),
+                        target_sector: gate["targetSector"].as_u32().unwrap(),
+                        target_gate: gate["targetGate"].as_u32().unwrap(),
+                    },
+                );
             }
-            gates.sort();
 
-            let offset = new.vertices.len() as u32 - n_corners * 2;
+            let offset = new.vertices.len() as u32 - data.corners.len() as u32 * 2;
 
             {
                 let mut gates_index: Vec<u32> = Vec::new();
-                for ele in gates {
-                    gates_index.push(ele.0.clone());
+                for ele in data.gates.clone() {
+                    gates_index.push(ele.own);
                 }
 
                 // Create indices for sector
-                for i in 0..(n_corners - 1) {
+                for i in 0..(data.corners.len() as u32 - 1) {
                     if !gates_index.contains(&i) {
                         new.indices.push(offset + i * 2);
                         new.indices.push(offset + i * 2 + 1);
@@ -69,32 +98,121 @@ impl Map {
                         new.indices.push(offset + i * 2 + 1);
                         new.indices.push(offset + i * 2 + 3);
                         new.indices.push(offset + i * 2 + 2);
-                    } else {
-                        // TODO: Create indices between sectors in gates
                     }
                 }
                 // between last and first element
-                if !gates_index.contains(&(n_corners - 1)) {
-                    new.indices.push(offset + (n_corners - 1) * 2);
-                    new.indices.push(offset + (n_corners - 1) * 2 + 1);
+                if !gates_index.contains(&(data.corners.len() as u32 - 1)) {
+                    new.indices
+                        .push(offset + (data.corners.len() as u32 - 1) * 2);
+                    new.indices
+                        .push(offset + (data.corners.len() as u32 - 1) * 2 + 1);
                     new.indices.push(offset);
-                    new.indices.push(offset + (n_corners - 1) * 2 + 1);
+                    new.indices
+                        .push(offset + (data.corners.len() as u32 - 1) * 2 + 1);
                     new.indices.push(offset + 1);
                     new.indices.push(offset);
                 }
             }
 
             // Floor and ceiling indices
-            for i in 0..(n_corners - 2) {
+            for i in 0..(data.corners.len() as u32 - 2) {
                 new.indices.push(offset);
                 new.indices.push(offset + i * 2 + 2);
                 new.indices.push(offset + i * 2 + 4);
             }
-            for i in 0..(n_corners - 2) {
+            for i in 0..(data.corners.len() as u32 - 2) {
                 new.indices.push(offset + 1);
                 new.indices.push(offset + i * 2 + 5);
                 new.indices.push(offset + i * 2 + 3);
             }
+
+            new.data.sectors.push(data);
+        }
+
+        // TODO: Create indices between sectors in gates
+        let mut offset_sector = 0;
+        for i in 0..new.data.sectors.len() {
+            let sector = &new.data.sectors[i];
+
+            for gate in &sector.gates {
+                let last_wall;
+                let offset_gate = if gate.own == sector.corners.len() as u32 - 1 {
+                    // if gate == last wall
+                    last_wall = true;
+                    0
+                } else {
+                    last_wall = false;
+                    gate.own * 2
+                };
+
+                let mut offset_other_sector = 0;
+                for j in 0..gate.target_sector {
+                    offset_other_sector += new.data.sectors[j as usize].corners.len() as u32 * 2;
+                }
+
+                let other_last_wall;
+                let offset_other_gate = if gate.target_gate
+                    == new.data.sectors[gate.target_sector as usize].corners.len() as u32 - 1
+                {
+                    other_last_wall = true;
+                    0
+                } else {
+                    other_last_wall = false;
+                    gate.target_gate * 2
+                };
+
+                let other_floor_val = &new.data.sectors[gate.target_sector as usize].floor;
+                let other_ceiling_val = &new.data.sectors[gate.target_sector as usize].ceiling;
+
+                if sector.floor > *other_floor_val {
+                    let mine_floor_p0 = offset_sector + offset_gate;
+                    let mine_floor_p1 = if last_wall {
+                        offset_sector + gate.own * 2
+                    } else {
+                        offset_sector + offset_gate + 2
+                    };
+
+                    let other_floor_p0 = offset_other_sector + offset_other_gate;
+                    let other_floor_p1 = if other_last_wall {
+                        offset_other_sector + gate.target_gate * 2
+                    } else {
+                        offset_other_sector + offset_other_gate + 2
+                    };
+
+                    new.indices.push(mine_floor_p0.clone());
+                    new.indices.push(mine_floor_p1.clone());
+                    new.indices.push(other_floor_p0.clone());
+
+                    new.indices.push(other_floor_p0.clone());
+                    new.indices.push(mine_floor_p1.clone());
+                    new.indices.push(other_floor_p1.clone());
+                }
+                if sector.ceiling < *other_ceiling_val {
+                    let mine_floor_p0 = offset_sector + offset_gate;
+                    let mine_floor_p1 = if last_wall {
+                        offset_sector + gate.own * 2
+                    } else {
+                        offset_sector + offset_gate + 2
+                    };
+
+                    let other_floor_p0 = offset_other_sector + offset_other_gate;
+                    let other_floor_p1 = if other_last_wall {
+                        offset_other_sector + gate.target_gate * 2
+                    } else {
+                        offset_other_sector + offset_other_gate + 2
+                    };
+
+                    new.indices.push(mine_floor_p0.clone() + 1);
+                    new.indices.push(other_floor_p0.clone() + 1);
+                    new.indices.push(mine_floor_p1.clone() + 1);
+
+                    new.indices.push(other_floor_p0.clone() + 1);
+                    new.indices.push(other_floor_p1.clone() + 1);
+                    new.indices.push(mine_floor_p1.clone() + 1);
+                }
+            }
+
+            offset_sector += new.data.sectors[i].corners.len() as u32 * 2;
         }
 
         new.create();

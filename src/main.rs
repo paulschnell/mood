@@ -4,6 +4,7 @@ extern crate nalgebra_glm;
 
 mod graphics;
 mod utils;
+mod mapdata;
 
 use glfw::Context;
 

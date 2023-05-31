@@ -26,6 +26,7 @@ impl Camera {
 
     pub fn foward(&mut self, speed: f32) {
         self.pos += self.front * speed;
+        // TODO: FIX MOVEMENT or in other words: MAKE MOVEMENT LIKE AN FPS CAMERA
     }
 
     pub fn right(&mut self, speed: f32) {

@@ -14,8 +14,8 @@
 				[1.0, 5.0]
 			],
 			"gates": [
-				[2, 1],
-				[4, 2]
+				{ "own": 2, "targetSector": 1, "targetGate": 4 },
+				{ "own": 4, "targetSector": 2, "targetGate": 3 }
 			]
 		},
 		{
@@ -28,7 +28,7 @@
 				[6.0, 7.0],
 				[5.0, 6.0]
 			],
-			"gates": [[4, 0]]
+			"gates": [{ "own": 4, "targetSector": 0, "targetGate": 2 }]
 		},
 		{
 			"floor": 0.25,
@@ -39,7 +39,7 @@
 				[0.0, 6.0],
 				[1.0, 5.0]
 			],
-			"gates": [[3, 0]]
+			"gates": [{ "own": 3, "targetSector": 0, "targetGate": 4 }]
 		}
 	]
 }

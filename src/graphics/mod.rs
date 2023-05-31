@@ -24,6 +24,8 @@ impl Graphics {
 
             gl::Enable(gl::CULL_FACE);
             gl::CullFace(gl::BACK);
+
+            // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
         }
 
         Graphics {
@@ -31,7 +33,7 @@ impl Graphics {
             projection: ng::perspective(
                 crate::INIT_WIDTH as f32 / crate::INIT_HEIGHT as f32,
                 45.0 * ng::pi::<f32>() / 180.0,
-                0.1,
+                0.001,
                 100.0,
             ),
             shaders: shader::Shader::new(
