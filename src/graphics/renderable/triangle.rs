@@ -1,43 +1,38 @@
+extern crate image;
+
+use image::io::Reader as ImageReader;
+
 use crate::graphics::renderable::{Model, Renderable};
 use crate::graphics::shader::Shader;
-use nalgebra_glm as ng;
 
-type Vertex = [f32; 6];
-const VERTICES: [Vertex; 8] = [
-    [1.0, 1.0, 1.0, 1.0, 0.0, 0.0],
-    [1.0, -1.0, 1.0, 0.0, 1.0, 0.0],
-    [-1.0, -1.0, 1.0, 0.0, 0.0, 1.0],
-    [-1.0, 1.0, 1.0, 1.0, 1.0, 0.0],
-    [1.0, 1.0, -1.0, 1.0, 0.0, 1.0],
-    [1.0, -1.0, -1.0, 0.0, 1.0, 1.0],
-    [-1.0, -1.0, -1.0, 1.0, 1.0, 1.0],
-    [-1.0, 1.0, -1.0, 0.0, 0.0, 0.0],
+type Vertex = [f32; 5];
+const VERTICES: [Vertex; 4] = [
+    [1.0, 1.0, -3.0, 1.0, 1.0],
+    [-1.0, 1.0, -3.0, 0.0, 1.0],
+    [-1.0, -1.0, -3.0, 0.0, 0.0],
+    [1.0, -1.0, -3.0, 0.0, 1.0],
 ];
+const INDICES: [u8; 6] = [0, 1, 2, 2, 3, 0];
 
-const INDICES: [u32; 36] = [
-    0, 1, 2, 2, 3, 0, 4, 5, 1, 1, 0, 4, 7, 6, 5, 5, 4, 7, 3, 2, 6, 6, 7, 3, 4, 0, 3, 3, 7, 4, 1, 5,
-    6, 6, 2, 1,
-];
-
-pub struct Cube {
+pub struct Triangle {
     model: Model,
+    texture: u32,
 }
 
-impl Cube {
+impl Triangle {
     pub fn new() -> Self {
-        let mut new = Cube {
+        let mut new = Triangle {
             model: Model::default(),
+            texture: 0,
         };
 
         new.create();
-
-        new.model.transform = ng::scale(&new.model.transform, &ng::Vec3::new(0.5, 0.5, 0.5));
 
         new
     }
 }
 
-impl Renderable for Cube {
+impl Renderable for Triangle {
     fn create(&mut self) {
         unsafe {
             gl::GenVertexArrays(1, &mut self.model.vao);
@@ -66,7 +61,7 @@ impl Renderable for Cube {
 
             gl::VertexAttribPointer(
                 1,
-                3,
+                2,
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<Vertex>().try_into().unwrap(),
@@ -82,28 +77,57 @@ impl Renderable for Cube {
                 gl::STATIC_DRAW,
             );
 
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0); // unbind
+            // Texture stuff
+            gl::GenTextures(1, &mut self.texture);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
+            let img = ImageReader::open("assets/textures/floor.png")
+                .unwrap()
+                .decode()
+                .unwrap()
+                .into_rgba8();
+
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGB as i32,
+                img.width() as i32,
+                img.height() as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                img.as_raw().as_ptr() as _,
+            );
+            gl::GenerateMipmap(gl::TEXTURE_2D);
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         }
     }
 
     fn render(&self, shaders: &Shader) {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture);
+        }
+
+        shaders.set_i32("texture0", &0);
         shaders.set_mat4("model", &self.model.transform);
         unsafe {
             gl::BindVertexArray(self.model.vao);
             gl::DrawElements(
                 gl::TRIANGLES,
                 INDICES.len() as i32,
-                gl::UNSIGNED_INT,
+                gl::UNSIGNED_BYTE,
                 0 as _,
             );
         }
     }
 
-    fn update(&mut self, delta_time: f32) {
-        self.model.transform = ng::rotate(
-            &self.model.transform,
-            4.0 * delta_time,
-            &ng::Vec3::new(1.0, 0.0, 1.0),
-        );
-    }
+    fn update(&mut self, delta_time: f32) {}
 }

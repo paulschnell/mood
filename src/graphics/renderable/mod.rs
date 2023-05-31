@@ -1,8 +1,8 @@
 use nalgebra_glm as ng;
 
-pub mod cube;
 pub mod gui;
 pub mod map;
+pub mod triangle;
 
 pub trait Renderable {
     fn create(&mut self);

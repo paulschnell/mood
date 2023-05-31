@@ -1,13 +1,10 @@
 extern crate json;
-extern crate rand;
 
 use crate::graphics::renderable::{Model, Renderable};
 use crate::graphics::shader::Shader;
 use crate::mapdata::{Data, Gate, Sector};
 
-use rand::Rng;
-
-type Vertex = [f32; 6];
+type Vertex = [f32; 3];
 
 pub struct Map {
     model: Model,
@@ -49,22 +46,8 @@ impl Map {
             for corner in sector["corners"].members_mut() {
                 let z = -1.0 * corner.pop().as_f32().unwrap();
                 let x = corner.pop().as_f32().unwrap();
-                new.vertices.push([
-                    x,
-                    floor - 0.5,
-                    z,
-                    rand::thread_rng().gen_range(0.0..=1.0),
-                    rand::thread_rng().gen_range(0.0..=1.0),
-                    rand::thread_rng().gen_range(0.0..=1.0),
-                ]); // floor
-                new.vertices.push([
-                    x,
-                    ceiling - 0.5,
-                    z,
-                    rand::thread_rng().gen_range(0.0..=1.0),
-                    rand::thread_rng().gen_range(0.0..=1.0),
-                    rand::thread_rng().gen_range(0.0..=1.0),
-                ]); // ceiling
+                new.vertices.push([x, floor - 0.5, z]); // floor
+                new.vertices.push([x, ceiling - 0.5, z]); // ceiling
 
                 data.corners.push((x, z).clone());
             }
@@ -129,7 +112,6 @@ impl Map {
             new.data.sectors.push(data);
         }
 
-        // TODO: Create indices between sectors in gates
         let mut offset_sector = 0;
         for i in 0..new.data.sectors.len() {
             let sector = &new.data.sectors[i];
@@ -251,16 +233,6 @@ impl Renderable for Map {
                 0 as *const _,
             );
             gl::EnableVertexAttribArray(0);
-
-            gl::VertexAttribPointer(
-                1,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                std::mem::size_of::<Vertex>().try_into().unwrap(),
-                (std::mem::size_of::<f32>() * 3) as *const _,
-            );
-            gl::EnableVertexAttribArray(1);
 
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.model.ebo);
             gl::BufferData(
