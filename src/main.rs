@@ -1,6 +1,7 @@
 extern crate gl;
 extern crate glfw;
 extern crate nalgebra_glm;
+extern crate image;
 
 mod graphics;
 mod utils;

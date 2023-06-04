@@ -17,6 +17,14 @@ struct Model {
     pub transform: ng::Mat4,
 }
 
+struct ModelTxs {
+    pub vao: u32,
+    pub vbo: u32,
+    pub ebo: u32,
+    pub transform: ng::Mat4,
+    pub textures: Vec<u32>,
+}
+
 impl Default for Model {
     fn default() -> Self {
         Model {
@@ -24,6 +32,18 @@ impl Default for Model {
             vbo: 0,
             ebo: 0,
             transform: ng::Mat4::identity(),
+        }
+    }
+}
+
+impl Default for ModelTxs {
+    fn default() -> Self {
+        ModelTxs {
+            vao: 0,
+            vbo: 0,
+            ebo: 0,
+            transform: ng::Mat4::identity(),
+            textures: Vec::new(),
         }
     }
 }

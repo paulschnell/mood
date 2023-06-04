@@ -10,6 +10,7 @@ pub struct Sector {
     pub ceiling: f32,
     pub corners: Vec<Corner>,
     pub gates: Vec<Gate>,
+    pub textures: Texture,
 }
 
 pub type Corner = (f32, f32); // x, z
@@ -28,6 +29,22 @@ impl Default for Data {
             name: String::new(),
             description: String::new(),
             sectors: Vec::new(),
+        }
+    }
+}
+
+pub struct Texture {
+    pub wall: String,
+    pub floor: String,
+    pub ceiling: String,
+}
+
+impl Default for Texture {
+    fn default() -> Self {
+        Texture {
+            wall: "fallback.png".to_string(),
+            floor: "fallback.png".to_string(),
+            ceiling: "fallback.png".to_string(),
         }
     }
 }

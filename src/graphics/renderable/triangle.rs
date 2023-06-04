@@ -1,16 +1,14 @@
-extern crate image;
-
 use image::io::Reader as ImageReader;
 
 use crate::graphics::renderable::{Model, Renderable};
 use crate::graphics::shader::Shader;
 
-type Vertex = [f32; 5];
+type Vertex = [f32; 6]; // x y z s t red
 const VERTICES: [Vertex; 4] = [
-    [1.0, 1.0, -3.0, 1.0, 1.0],
-    [-1.0, 1.0, -3.0, 0.0, 1.0],
-    [-1.0, -1.0, -3.0, 0.0, 0.0],
-    [1.0, -1.0, -3.0, 0.0, 1.0],
+    [1.0, 1.0, -3.0, 1.0, 1.0, 1.0],
+    [-1.0, 1.0, -3.0, 0.0, 1.0, 0.0],
+    [-1.0, -1.0, -3.0, 0.0, 0.0, 0.33],
+    [1.0, -1.0, -3.0, 0.0, 1.0, 0.66],
 ];
 const INDICES: [u8; 6] = [0, 1, 2, 2, 3, 0];
 
@@ -69,6 +67,16 @@ impl Renderable for Triangle {
             );
             gl::EnableVertexAttribArray(1);
 
+            gl::VertexAttribPointer(
+                2,
+                1,
+                gl::FLOAT,
+                gl::FALSE,
+                std::mem::size_of::<Vertex>().try_into().unwrap(),
+                (std::mem::size_of::<f32>() * 5) as *const _,
+            );
+            gl::EnableVertexAttribArray(2);
+
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.model.ebo);
             gl::BufferData(
                 gl::ELEMENT_ARRAY_BUFFER,
@@ -79,7 +87,7 @@ impl Renderable for Triangle {
 
             // Texture stuff
             gl::GenTextures(1, &mut self.texture);
-            gl::ActiveTexture(gl::TEXTURE0);
+            // gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.texture);
 
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
@@ -87,7 +95,7 @@ impl Renderable for Triangle {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
 
-            let img = ImageReader::open("assets/textures/floor.png")
+            let img = ImageReader::open("assets/textures/test/floor.png")
                 .unwrap()
                 .decode()
                 .unwrap()
@@ -111,12 +119,12 @@ impl Renderable for Triangle {
     }
 
     fn render(&self, shaders: &Shader) {
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.texture);
-        }
-
+        // unsafe {
+        //     gl::ActiveTexture(gl::TEXTURE0);
+        //     gl::BindTexture(gl::TEXTURE_2D, self.texture);
+        // }
         shaders.set_i32("texture0", &0);
+
         shaders.set_mat4("model", &self.model.transform);
         unsafe {
             gl::BindVertexArray(self.model.vao);
@@ -129,5 +137,5 @@ impl Renderable for Triangle {
         }
     }
 
-    fn update(&mut self, delta_time: f32) {}
+    fn update(&mut self, _delta_time: f32) {}
 }

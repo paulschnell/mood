@@ -14,8 +14,8 @@ pub struct Graphics {
 
     map: renderable::map::Map,
 
-    pub tex_shader: shader::Shader,
-    textured: renderable::triangle::Triangle,
+    // pub tex_shader: shader::Shader,
+    // textured: renderable::triangle::Triangle,
 }
 
 impl Graphics {
@@ -40,24 +40,24 @@ impl Graphics {
                 100.0,
             ),
             shaders: shader::Shader::new(
-                "assets/shaders/shader.glsl.vert",
-                "assets/shaders/shader.glsl.frag",
+                "assets/shaders/map.glsl.vert",
+                "assets/shaders/map.glsl.frag",
             ),
             camera: camera::Camera::new(),
 
             map: renderable::map::Map::new("test.json"),
 
-            tex_shader: shader::Shader::new(
-                "assets/shaders/tex.glsl.vert",
-                "assets/shaders/tex.glsl.frag",
-            ),
-            textured: renderable::triangle::Triangle::new(),
+            // tex_shader: shader::Shader::new(
+            //     "assets/shaders/tex.glsl.vert",
+            //     "assets/shaders/tex.glsl.frag",
+            // ),
+            // textured: renderable::triangle::Triangle::new(),
         }
     }
 
     pub fn update(&mut self, delta_time: f32) {
         self.map.update(delta_time);
-        self.textured.update(delta_time);
+        // self.textured.update(delta_time);
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -68,11 +68,11 @@ impl Graphics {
 
         self.map.render(&self.shaders);
 
-        self.tex_shader.use_program();
-        self.tex_shader.set_mat4("projection", &self.projection);
-        self.tex_shader.set_mat4("view", &self.camera.view());
+        // self.tex_shader.use_program();
+        // self.tex_shader.set_mat4("projection", &self.projection);
+        // self.tex_shader.set_mat4("view", &self.camera.view());
 
-        self.textured.render(&self.tex_shader);
+        // self.textured.render(&self.tex_shader);
     }
 
     pub fn destroy(&self) {}
