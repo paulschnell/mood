@@ -1,11 +1,10 @@
 extern crate gl;
 extern crate glfw;
-extern crate nalgebra_glm;
 extern crate image;
+extern crate nalgebra_glm;
 
-mod graphics;
+pub mod graphics;
 mod utils;
-mod mapdata;
 
 use glfw::Context;
 
@@ -38,6 +37,8 @@ fn main() {
 
     let wnd_last_size = window.get_size();
 
+    let mut fill_mode = true;
+
     // OpenGL
     gl::load_with(|s| window.get_proc_address(s));
 
@@ -68,6 +69,20 @@ fn main() {
                         y as f32,
                         CAMERA_SENSITIVITY * delta_time as f32,
                     );
+                }
+
+                glfw::WindowEvent::Key(glfw::Key::F, _, glfw::Action::Press, glfw::Modifiers::Control) => {
+                    fill_mode = if fill_mode {
+                        unsafe {
+                            gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+                        }
+                        false
+                    } else {
+                        unsafe {
+                            gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
+                        }
+                        true
+                    };
                 }
 
                 _ => {}

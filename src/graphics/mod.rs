@@ -1,10 +1,11 @@
 mod camera;
-mod renderable;
+pub mod renderable;
 mod shader;
 
 use crate::graphics::renderable::Renderable;
 use crate::utils::Rect;
 use nalgebra_glm as ng;
+use renderable::mapdata::Map;
 
 pub struct Graphics {
     screen_size: Rect<u32>,
@@ -12,7 +13,7 @@ pub struct Graphics {
     pub shaders: shader::Shader,
     pub camera: camera::Camera,
 
-    map: renderable::map::Map,
+    map: Map,
 
     // pub tex_shader: shader::Shader,
     // textured: renderable::triangle::Triangle,
@@ -27,8 +28,6 @@ impl Graphics {
 
             gl::Enable(gl::CULL_FACE);
             gl::CullFace(gl::BACK);
-
-            // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
         }
 
         Graphics {
@@ -40,12 +39,12 @@ impl Graphics {
                 100.0,
             ),
             shaders: shader::Shader::new(
-                "assets/shaders/map.glsl.vert",
-                "assets/shaders/map.glsl.frag",
+                "assets/shaders/shader.glsl.vert",
+                "assets/shaders/shader.glsl.frag",
             ),
             camera: camera::Camera::new(),
 
-            map: renderable::map::Map::new("test.json"),
+            map: Map::load_from_file("test.json"),
 
             // tex_shader: shader::Shader::new(
             //     "assets/shaders/tex.glsl.vert",
