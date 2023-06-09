@@ -1,6 +1,7 @@
-use crate::graphics::renderable::sector::Sector as SectorMesh;
-use crate::graphics::renderable::sector::Vertex;
-use crate::graphics::renderable::Renderable;
+use super::RenderableShader;
+use crate::graphics::renderable::sector::{
+    Sector as SectorMesh, TextureData, Vertex, CEILING, FLOOR,
+};
 use crate::graphics::shader::Shader;
 use crate::utils::{get_item, index_of};
 use nalgebra_glm as ng;
@@ -10,6 +11,7 @@ pub struct Map {
     pub name: String,
     pub description: String,
     pub sectors: Vec<Sector>,
+    pub spawn: (f32, f32, f32),
 }
 
 #[derive(Clone)]
@@ -18,7 +20,6 @@ pub struct Sector {
     pub ceiling: f32,
     pub corners: Vec<Corner>,
     pub gates: Vec<Gate>,
-    pub texture: Texture,
     pub mesh: SectorMesh,
 }
 
@@ -31,30 +32,31 @@ pub struct Gate {
     pub target_gate: u32,
 }
 
-#[derive(Clone)]
-pub struct Texture {
-    pub wall: String,
-    pub floor: String,
-    pub ceiling: String,
-}
-
 impl Map {
-    pub fn load_from_file(path: &str) -> Self {
-        let mut map = Map {
-            path: format!("assets/maps/{path}"),
+    pub fn new() -> Self {
+        Map {
+            path: String::new(),
             name: String::new(),
             description: String::new(),
             sectors: Vec::new(),
-        };
+            spawn: (0.0, 0.0, 0.0),
+        }
+    }
+
+    pub fn load_from_file(&mut self, path: &str, shaders: &Shader) {
+        self.path = format!("assets/maps/{path}");
 
         let mut map_json;
         {
             let input =
-                std::fs::read_to_string(&map.path).expect("Could not find file '{map.path}'");
+                std::fs::read_to_string(&self.path).expect("Could not find file '{self.path}'");
             map_json = json::parse(&input).unwrap();
         }
-        map.name = map_json["name"].take_string().unwrap();
-        map.description = map_json["description"].take_string().unwrap();
+        self.name = map_json["name"].take_string().unwrap();
+        self.description = map_json["description"].take_string().unwrap();
+        self.spawn.2 = map_json["spawn"].pop().as_f32().unwrap();
+        self.spawn.1 = map_json["spawn"].pop().as_f32().unwrap();
+        self.spawn.0 = map_json["spawn"].pop().as_f32().unwrap();
 
         for sector_json in map_json["sectors"].members_mut() {
             let floor = sector_json["floor"].as_f32().unwrap();
@@ -68,14 +70,36 @@ impl Map {
             //
             // Create mesh
             //
-            // Create vertices on floor and ceiling level
+            // Create vertices on floor and ceiling level#
+            let mut last = (0.0, 0.0);
             for corner_json in sector_json["corners"].members_mut() {
                 let z = corner_json.pop().as_f32().unwrap();
                 let x = corner_json.pop().as_f32().unwrap();
-                vertices.push([x, floor, z * -1.0]); // floor
-                vertices.push([x, ceiling, z * -1.0]); // ceiling
+                let diff = f32::sqrt(f32::abs(x - last.0).powi(2) + f32::abs(z - last.1).powi(2));
+                vertices.push(Vertex {
+                    x,
+                    y: floor,
+                    z: z * -1.0,
+                    s_horizontal: x,
+                    t_horizontal: z,
+                    s_vertical: diff,
+                    t_vertical: 0.0,
+                    vtype: FLOOR,
+                });
+                vertices.push(Vertex {
+                    x,
+                    y: ceiling,
+                    z: z * -1.0,
+                    s_horizontal: x,
+                    t_horizontal: z,
+                    s_vertical: diff,
+                    t_vertical: 1.0,
+                    vtype: CEILING,
+                });
 
                 corners.push((x, z).clone());
+
+                last = (x, z);
             }
 
             // Get Gates for Indices
@@ -239,52 +263,70 @@ impl Map {
                 ceiling,
                 corners,
                 gates,
-                texture: Texture {
-                    wall: match sector_json["textures"]["wall"].as_str() {
-                        Some(s) => format!("assets/textures/{s}").to_string(),
-                        None => "assets/textures/fallback.png".to_string(),
+                mesh: SectorMesh::new(
+                    vertices,
+                    indices,
+                    TextureData {
+                        wall: match sector_json["textures"]["wall"].as_str() {
+                            Some(s) => format!("assets/textures/{s}").to_string(),
+                            None => "assets/textures/fallback.png".to_string(),
+                        },
+                        floor: match sector_json["textures"]["floor"].as_str() {
+                            Some(s) => format!("assets/textures/{s}").to_string(),
+                            None => "assets/textures/fallback.png".to_string(),
+                        },
+                        ceiling: match sector_json["textures"]["ceiling"].as_str() {
+                            Some(s) => format!("assets/textures/{s}").to_string(),
+                            None => "assets/textures/fallback.png".to_string(),
+                        },
                     },
-                    floor: match sector_json["textures"]["floor"].as_str() {
-                        Some(s) => format!("assets/textures/{s}").to_string(),
-                        None => "assets/textures/fallback.png".to_string(),
-                    },
-                    ceiling: match sector_json["textures"]["ceiling"].as_str() {
-                        Some(s) => format!("assets/textures/{s}").to_string(),
-                        None => "assets/textures/fallback.png".to_string(),
-                    },
-                },
-                mesh: SectorMesh::new(vertices, indices),
+                ),
             };
 
-            map.sectors.push(sector);
+            self.sectors.push(sector);
         }
 
         {
-            let cpy_sectors = map.sectors.clone();
-            for sector in &mut map.sectors {
+            let cpy_sectors = self.sectors.clone();
+            for sector in &mut self.sectors {
                 // Indices between sectors
                 for gate in &sector.gates {
                     // Floor
                     if sector.floor > cpy_sectors[gate.target_sector as usize].floor {
-                        sector.mesh.vertices.push([
-                            sector.corners[gate.own as usize].0,
-                            cpy_sectors[gate.target_sector as usize].floor,
-                            -1.0 * sector.corners[gate.own as usize].1,
-                        ]);
+                        sector.mesh.vertices.push(Vertex {
+                            x: sector.corners[gate.own as usize].0,
+                            y: cpy_sectors[gate.target_sector as usize].floor,
+                            z: -1.0 * sector.corners[gate.own as usize].1,
+                            s_horizontal: 0.0,
+                            t_horizontal: 0.0,
+                            s_vertical: 0.0,
+                            t_vertical: 0.0,
+                            vtype: 0,
+                        });
 
                         // if is between last and first
                         if gate.own as i32 == sector.corners.len() as i32 - 1 {
-                            sector.mesh.vertices.push([
-                                sector.corners[0].0,
-                                cpy_sectors[gate.target_sector as usize].floor,
-                                -1.0 * sector.corners[0].1,
-                            ]);
+                            sector.mesh.vertices.push(Vertex {
+                                x: sector.corners[0].0,
+                                y: cpy_sectors[gate.target_sector as usize].floor,
+                                z: -1.0 * sector.corners[0].1,
+                                s_horizontal: 0.0,
+                                t_horizontal: 0.0,
+                                s_vertical: 0.0,
+                                t_vertical: 0.0,
+                                vtype: 0,
+                            });
                         } else {
-                            sector.mesh.vertices.push([
-                                sector.corners[gate.own as usize + 1].0,
-                                cpy_sectors[gate.target_sector as usize].floor,
-                                -1.0 * sector.corners[gate.own as usize + 1].1,
-                            ]);
+                            sector.mesh.vertices.push(Vertex {
+                                x: sector.corners[gate.own as usize + 1].0,
+                                y: cpy_sectors[gate.target_sector as usize].floor,
+                                z: -1.0 * sector.corners[gate.own as usize + 1].1,
+                                s_horizontal: 0.0,
+                                t_horizontal: 0.0,
+                                s_vertical: 0.0,
+                                t_vertical: 0.0,
+                                vtype: 0,
+                            });
                         }
 
                         let vert_len = sector.mesh.vertices.len() as u32;
@@ -305,25 +347,40 @@ impl Map {
 
                     // Ceiling
                     if sector.ceiling < cpy_sectors[gate.target_sector as usize].ceiling {
-                        sector.mesh.vertices.push([
-                            sector.corners[gate.own as usize].0,
-                            cpy_sectors[gate.target_sector as usize].ceiling,
-                            -1.0 * sector.corners[gate.own as usize].1,
-                        ]);
+                        sector.mesh.vertices.push(Vertex {
+                            x: sector.corners[gate.own as usize].0,
+                            y: cpy_sectors[gate.target_sector as usize].ceiling,
+                            z: -1.0 * sector.corners[gate.own as usize].1,
+                            s_horizontal: 0.0,
+                            t_horizontal: 0.0,
+                            s_vertical: 0.0,
+                            t_vertical: 0.0,
+                            vtype: 0,
+                        });
 
                         // if is between last and first
                         if gate.own as i32 == sector.corners.len() as i32 - 1 {
-                            sector.mesh.vertices.push([
-                                sector.corners[0].0,
-                                cpy_sectors[gate.target_sector as usize].ceiling,
-                                -1.0 * sector.corners[0].1,
-                            ]);
+                            sector.mesh.vertices.push(Vertex {
+                                x: sector.corners[0].0,
+                                y: cpy_sectors[gate.target_sector as usize].ceiling,
+                                z: -1.0 * sector.corners[0].1,
+                                s_horizontal: 0.0,
+                                t_horizontal: 0.0,
+                                s_vertical: 0.0,
+                                t_vertical: 0.0,
+                                vtype: 0,
+                            });
                         } else {
-                            sector.mesh.vertices.push([
-                                sector.corners[gate.own as usize + 1].0,
-                                cpy_sectors[gate.target_sector as usize].ceiling,
-                                -1.0 * sector.corners[gate.own as usize + 1].1,
-                            ]);
+                            sector.mesh.vertices.push(Vertex {
+                                x: sector.corners[gate.own as usize + 1].0,
+                                y: cpy_sectors[gate.target_sector as usize].ceiling,
+                                z: -1.0 * sector.corners[gate.own as usize + 1].1,
+                                s_horizontal: 0.0,
+                                t_horizontal: 0.0,
+                                s_vertical: 0.0,
+                                t_vertical: 0.0,
+                                vtype: 0,
+                            });
                         }
 
                         let vert_len = sector.mesh.vertices.len() as u32;
@@ -345,16 +402,14 @@ impl Map {
             }
         }
 
-        map.create();
-
-        return map;
+        self.create(shaders);
     }
 }
 
-impl Renderable for Map {
-    fn create(&mut self) {
+impl RenderableShader for Map {
+    fn create(&mut self, shaders: &Shader) {
         for sector in &mut self.sectors {
-            sector.mesh.create();
+            sector.mesh.create(shaders);
         }
     }
 

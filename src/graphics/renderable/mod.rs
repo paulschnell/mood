@@ -1,9 +1,9 @@
 use nalgebra_glm as ng;
 
 pub mod gui;
-pub mod triangle;
-pub mod sector;
 pub mod mapdata;
+pub mod sector;
+pub mod triangle;
 
 pub trait Renderable {
     fn create(&mut self);
@@ -17,6 +17,12 @@ struct Model {
     pub vbo: u32,
     pub ebo: u32,
     pub transform: ng::Mat4,
+}
+
+pub trait RenderableShader {
+    fn create(&mut self, shaders: &crate::graphics::shader::Shader);
+    fn render(&self, shaders: &crate::graphics::shader::Shader);
+    fn update(&mut self, delta_time: f32);
 }
 
 #[derive(Clone)]

@@ -71,7 +71,12 @@ fn main() {
                     );
                 }
 
-                glfw::WindowEvent::Key(glfw::Key::F, _, glfw::Action::Press, glfw::Modifiers::Control) => {
+                glfw::WindowEvent::Key(
+                    glfw::Key::F,
+                    _,
+                    glfw::Action::Press,
+                    glfw::Modifiers::Control,
+                ) => {
                     fill_mode = if fill_mode {
                         unsafe {
                             gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);

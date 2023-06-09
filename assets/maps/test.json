@@ -1,6 +1,7 @@
 {
 	"name": "Test yk, but C++ still sucks",
 	"description": "E-Sports: The Rise of Competitive Gaming. Explore the global phenomenon of e-sports, where professional gamers compete for glory and big prize pools in popular titles. - ChatGPT",
+	"spawn": [ 3.0, 0.5, 3.0 ],
 	"sectors": [
 		{
 			"floor": 0.0,
@@ -37,7 +38,7 @@
 			"gates": [{ "own": 5, "targetSector": 0, "targetGate": 2 }],
 			"textures": {
 				"wall": "test/wall.png",
-				"floor": "test/floor.png",
+				"floor": "fallback.png",
 				"ceiling": "test/ceiling.png"
 			}
 		},
@@ -53,7 +54,7 @@
 			"gates": [{ "own": 3, "targetSector": 0, "targetGate": 4 }],
 			"textures": {
 				"wall": "test/wall.png",
-				"floor": "test/floor.png",
+				"floor": "fallback.png",
 				"ceiling": "test/ceiling.png"
 			}
 		}

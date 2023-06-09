@@ -1,7 +1,5 @@
-use nalgebra_glm as ng;
-
 pub fn deg_to_rad(deg: f32) -> f32 {
-    deg * ng::pi::<f32>() / 180.0
+    deg * nalgebra_glm::pi::<f32>() / 180.0
 }
 
 pub struct Rect<T> {

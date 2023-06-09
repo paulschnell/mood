@@ -37,6 +37,14 @@ impl Camera {
         self.pos += self.up * speed;
     }
 
+    pub fn put(&mut self, x: f32, y: f32, z: f32, yaw: f32, pitch: f32) {
+        self.pos.x = x;
+        self.pos.y = y;
+        self.pos.z = z;
+        self.yaw = yaw;
+        self.pitch = pitch;
+    }
+
     pub fn cur_mov(&mut self, x: f32, y: f32, sensitivity: f32) {
         if self.first_move {
             self.cur_last_pos = (x, y);
