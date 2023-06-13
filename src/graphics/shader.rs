@@ -72,6 +72,16 @@ impl Shader {
             );
         }
     }
+
+    pub fn set_i32(&self, name: &str, value: &i32) {
+        let cname = std::ffi::CString::new(name).expect("CString::new failed.");
+        unsafe {
+            gl::Uniform1i(
+                gl::GetUniformLocation(self.id, cname.as_ptr().cast()),
+                *value,
+            );
+        }
+    }
 }
 
 fn check_for_error(shader: &u32, shader_type: &str) {

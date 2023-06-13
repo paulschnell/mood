@@ -1,10 +1,11 @@
 {
 	"name": "Test yk, but C++ still sucks",
 	"description": "E-Sports: The Rise of Competitive Gaming. Explore the global phenomenon of e-sports, where professional gamers compete for glory and big prize pools in popular titles. - ChatGPT",
+	"spawn": [3.0, 0.5, 3.0],
 	"sectors": [
 		{
 			"floor": 0.0,
-			"ceiling": 1.5,
+			"ceiling": 1.7,
 			"corners": [
 				[1.0, 1.0],
 				[4.0, 1.0],
@@ -16,7 +17,13 @@
 			"gates": [
 				{ "own": 2, "targetSector": 1, "targetGate": 4 },
 				{ "own": 4, "targetSector": 2, "targetGate": 3 }
-			]
+			],
+			"textures": {
+				"wall": "test/wall.png",
+				"floor": "test/floor.png",
+				"ceiling": "test/ceiling.png",
+				"gate": "test/ceiling.png"
+			}
 		},
 		{
 			"floor": 0.2,
@@ -24,11 +31,18 @@
 			"corners": [
 				[5.0, 3.0],
 				[7.0, 3.0],
+				[9.0, 2.0],
 				[8.0, 5.0],
 				[6.0, 7.0],
 				[5.0, 6.0]
 			],
-			"gates": [{ "own": 4, "targetSector": 0, "targetGate": 2 }]
+			"gates": [{ "own": 5, "targetSector": 0, "targetGate": 2 }],
+			"textures": {
+				"wall": "test/wall.png",
+				"floor": "fallback.png",
+				"ceiling": "test/ceiling.png",
+				"gate": "test/ceiling.png"
+			}
 		},
 		{
 			"floor": 0.25,
@@ -39,7 +53,13 @@
 				[0.0, 6.0],
 				[1.0, 5.0]
 			],
-			"gates": [{ "own": 3, "targetSector": 0, "targetGate": 4 }]
+			"gates": [{ "own": 3, "targetSector": 0, "targetGate": 4 }],
+			"textures": {
+				"wall": "test/wall.png",
+				"floor": "fallback.png",
+				"ceiling": "test/ceiling.png",
+				"gate": "test/ceiling.png"
+			}
 		}
 	]
 }

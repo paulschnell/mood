@@ -1,8 +1,8 @@
 use nalgebra_glm as ng;
 
-pub mod cube;
 pub mod gui;
-pub mod map;
+pub mod mapdata;
+pub mod sector;
 
 pub trait Renderable {
     fn create(&mut self);
@@ -10,6 +10,13 @@ pub trait Renderable {
     fn update(&mut self, delta_time: f32);
 }
 
+pub trait RenderableShader {
+    fn create(&mut self, shaders: &crate::graphics::shader::Shader);
+    fn render(&self, shaders: &crate::graphics::shader::Shader);
+    fn update(&mut self, delta_time: f32);
+}
+
+#[derive(Clone)]
 struct Model {
     pub vao: u32,
     pub vbo: u32,

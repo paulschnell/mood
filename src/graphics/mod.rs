@@ -2,33 +2,32 @@ mod camera;
 mod renderable;
 mod shader;
 
-use crate::graphics::renderable::Renderable;
 use crate::utils::Rect;
 use nalgebra_glm as ng;
+use renderable::mapdata::Map;
+use renderable::RenderableShader;
 
 pub struct Graphics {
     screen_size: Rect<u32>,
     projection: ng::Mat4,
-    pub shaders: shader::Shader,
     pub camera: camera::Camera,
 
-    map: renderable::map::Map,
+    map_shader: shader::Shader,
+    map: Map,
 }
 
 impl Graphics {
     pub fn init() -> Self {
         unsafe {
-            // gl::ClearColor(1.0, 1.0, 1.0, 1.0);
-            gl::ClearColor(18.0 / 255.0, 18.0 / 255.0, 18.0 / 255.0, 1.0);
+            gl::ClearColor(55.0 / 255.0, 96.0 / 255.0, 97.0 / 255.0, 1.0);
             gl::Enable(gl::DEPTH_TEST);
 
             gl::Enable(gl::CULL_FACE);
-            gl::CullFace(gl::BACK);
-
-            // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+            // gl::CullFace(gl::BACK);
+            // gl::FrontFace(gl::CCW);
         }
 
-        Graphics {
+        let mut graphics = Graphics {
             screen_size: Rect::new(0, 0, crate::INIT_WIDTH, crate::INIT_HEIGHT),
             projection: ng::perspective(
                 crate::INIT_WIDTH as f32 / crate::INIT_HEIGHT as f32,
@@ -36,14 +35,28 @@ impl Graphics {
                 0.001,
                 100.0,
             ),
-            shaders: shader::Shader::new(
-                "assets/shaders/shader.glsl.vert",
-                "assets/shaders/shader.glsl.frag",
-            ),
             camera: camera::Camera::new(),
 
-            map: renderable::map::Map::new("test.json"),
-        }
+            map_shader: shader::Shader::new(
+                "assets/shaders/map.glsl.vert",
+                "assets/shaders/map.glsl.frag",
+            ),
+            map: Map::new(),
+        };
+
+        graphics
+            .map
+            .load_from_file("test.json", &graphics.map_shader);
+
+        graphics.camera.put(
+            graphics.map.spawn.0,
+            graphics.map.spawn.1,
+            -1.0 * graphics.map.spawn.2,
+            0.0,
+            0.0,
+        );
+
+        graphics
     }
 
     pub fn update(&mut self, delta_time: f32) {
@@ -52,11 +65,11 @@ impl Graphics {
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
-        self.shaders.use_program();
-        self.shaders.set_mat4("projection", &self.projection);
-        self.shaders.set_mat4("view", &self.camera.view());
+        self.map_shader.use_program();
+        self.map_shader.set_mat4("projection", &self.projection);
+        self.map_shader.set_mat4("view", &self.camera.view());
 
-        self.map.render(&self.shaders);
+        self.map.render(&self.map_shader);
     }
 
     pub fn destroy(&self) {}
