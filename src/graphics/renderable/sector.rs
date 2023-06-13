@@ -1,46 +1,71 @@
-use super::{ModelTxs, RenderableShader};
+use super::{Model, RenderableShader};
 use crate::graphics::shader::Shader;
 use image::io::Reader as ImageReader;
 
+pub const _UNDEFINED: u32 = 0;
 pub const FLOOR: u32 = 1;
 pub const CEILING: u32 = 2;
+pub const WALL: u32 = 3;
+pub const GATE: u32 = 4;
 
 #[derive(Clone)]
 pub struct Vertex {
     pub x: f32,
     pub y: f32,
     pub z: f32,
-    pub s_horizontal: f32,
-    pub t_horizontal: f32,
-    pub s_vertical: f32,
-    pub t_vertical: f32,
+    pub s: f32,
+    pub t: f32,
     pub vtype: u32,
 }
 
 #[derive(Clone)]
 pub struct Sector {
-    pub model: ModelTxs,
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>,
-    pub texture: TextureData,
-    txs_ids: Vec<u32>,
+    wall_model: Model,
+    pub wall_vertices: Vec<Vertex>,
+    pub wall_indices: Vec<u32>,
+
+    planes_model: Model,
+    pub planes_vertices: Vec<Vertex>,
+    pub planes_indices: Vec<u32>,
+
+    texture: TextureData,
 }
 
 #[derive(Clone)]
 pub struct TextureData {
-    pub wall: String,
-    pub floor: String,
-    pub ceiling: String,
+    pub wall: (String, u32),
+    pub floor: (String, u32),
+    pub ceiling: (String, u32),
+    pub gate: (String, u32),
 }
 
 impl Sector {
-    pub fn new(vertices: Vec<Vertex>, indices: Vec<u32>, texture: TextureData) -> Self {
+    pub fn new(
+        wall_vertices: Vec<Vertex>,
+        wall_indices: Vec<u32>,
+        planes_vertices: Vec<Vertex>,
+        planes_indices: Vec<u32>,
+        texture: TextureData,
+    ) -> Self {
         Sector {
-            model: ModelTxs::default(),
-            vertices,
-            indices,
+            wall_model: Model::default(),
+            wall_vertices,
+            wall_indices,
+
+            planes_model: Model::default(),
+            planes_vertices,
+            planes_indices,
+
             texture,
-            txs_ids: Vec::new(),
+        }
+    }
+
+    fn draw(&self, shaders: &Shader, model: &Model, indices_len: i32) {
+        shaders.set_mat4("model", &model.transform);
+
+        unsafe {
+            gl::BindVertexArray(model.vao);
+            gl::DrawElements(gl::TRIANGLES, indices_len, gl::UNSIGNED_INT, 0 as _);
         }
     }
 }
@@ -48,21 +73,22 @@ impl Sector {
 impl RenderableShader for Sector {
     fn create(&mut self, shaders: &Shader) {
         unsafe {
-            gl::GenVertexArrays(1, &mut self.model.vao);
-            gl::GenBuffers(1, &mut self.model.vbo);
-            gl::GenBuffers(1, &mut self.model.ebo);
+            // WALLS
+            gl::GenVertexArrays(1, &mut self.wall_model.vao);
+            gl::GenBuffers(1, &mut self.wall_model.vbo);
+            gl::GenBuffers(1, &mut self.wall_model.ebo);
 
-            gl::BindVertexArray(self.model.vao);
+            gl::BindVertexArray(self.wall_model.vao);
 
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.model.vbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.wall_model.vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                self.vertices
+                self.wall_vertices
                     .as_ptr_range()
                     .end
-                    .offset_from(self.vertices.as_ptr_range().start)
+                    .offset_from(self.wall_vertices.as_ptr_range().start)
                     * std::mem::size_of::<Vertex>() as isize,
-                self.vertices.as_ptr().cast(),
+                self.wall_vertices.as_ptr().cast(),
                 gl::STATIC_DRAW,
             );
 
@@ -86,74 +112,129 @@ impl RenderableShader for Sector {
             );
             gl::EnableVertexAttribArray(1);
 
+            gl::VertexAttribIPointer(
+                3,
+                1,
+                gl::UNSIGNED_INT,
+                std::mem::size_of::<Vertex>().try_into().unwrap(),
+                (std::mem::size_of::<f32>() * 5) as *const _,
+            );
+            gl::EnableVertexAttribArray(3);
+
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.wall_model.ebo);
+            gl::BufferData(
+                gl::ELEMENT_ARRAY_BUFFER,
+                self.wall_indices
+                    .as_ptr_range()
+                    .end
+                    .offset_from(self.wall_indices.as_ptr_range().start)
+                    * std::mem::size_of::<u32>() as isize,
+                self.wall_indices.as_ptr().cast(),
+                gl::STATIC_DRAW,
+            );
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+
+            // PLANES
+            gl::GenVertexArrays(1, &mut self.planes_model.vao);
+            gl::GenBuffers(1, &mut self.planes_model.vbo);
+            gl::GenBuffers(1, &mut self.planes_model.ebo);
+
+            gl::BindVertexArray(self.planes_model.vao);
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.planes_model.vbo);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                self.planes_vertices
+                    .as_ptr_range()
+                    .end
+                    .offset_from(self.planes_vertices.as_ptr_range().start)
+                    * std::mem::size_of::<Vertex>() as isize,
+                self.planes_vertices.as_ptr().cast(),
+                gl::STATIC_DRAW,
+            );
+
             gl::VertexAttribPointer(
-                2,
+                0,
+                3,
+                gl::FLOAT,
+                gl::FALSE,
+                std::mem::size_of::<Vertex>().try_into().unwrap(),
+                0 as *const _,
+            );
+            gl::EnableVertexAttribArray(0);
+
+            gl::VertexAttribPointer(
+                1,
                 2,
                 gl::FLOAT,
                 gl::FALSE,
                 std::mem::size_of::<Vertex>().try_into().unwrap(),
-                (std::mem::size_of::<f32>() * 5) as *const _,
+                (std::mem::size_of::<f32>() * 3) as *const _,
             );
-            gl::EnableVertexAttribArray(2);
+            gl::EnableVertexAttribArray(1);
 
             gl::VertexAttribIPointer(
                 3,
                 1,
                 gl::UNSIGNED_INT,
                 std::mem::size_of::<Vertex>().try_into().unwrap(),
-                (std::mem::size_of::<f32>() * 7) as *const _,
+                (std::mem::size_of::<f32>() * 5) as *const _,
             );
             gl::EnableVertexAttribArray(3);
 
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.model.ebo);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.planes_model.ebo);
             gl::BufferData(
                 gl::ELEMENT_ARRAY_BUFFER,
-                self.indices
+                self.planes_indices
                     .as_ptr_range()
                     .end
-                    .offset_from(self.indices.as_ptr_range().start)
+                    .offset_from(self.planes_indices.as_ptr_range().start)
                     * std::mem::size_of::<u32>() as isize,
-                self.indices.as_ptr().cast(),
+                self.planes_indices.as_ptr().cast(),
                 gl::STATIC_DRAW,
             );
 
-            self.txs_ids.resize(3, 0);
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+
             shaders.use_program();
 
-            gl::GenTextures(1, &mut self.txs_ids[0]);
-            create_texture(self.txs_ids[0], &self.texture.floor);
+            gl::GenTextures(1, &mut self.texture.floor.1);
+            create_texture(self.texture.floor.1, &self.texture.floor.0);
             shaders.set_i32("tx_floor", &0);
 
-            gl::GenTextures(1, &mut self.txs_ids[1]);
-            create_texture(self.txs_ids[1], &self.texture.ceiling);
+            gl::GenTextures(1, &mut self.texture.ceiling.1);
+            create_texture(self.texture.ceiling.1, &self.texture.ceiling.0);
             shaders.set_i32("tx_ceiling", &1);
 
-            gl::GenTextures(1, &mut self.txs_ids[2]);
-            create_texture(self.txs_ids[2], &self.texture.wall);
+            gl::GenTextures(1, &mut self.texture.wall.1);
+            create_texture(self.texture.wall.1, &self.texture.wall.0);
             shaders.set_i32("tx_wall", &2);
 
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+            gl::GenTextures(1, &mut self.texture.gate.1);
+            create_texture(self.texture.gate.1, &self.texture.gate.0);
+            shaders.set_i32("tx_gate", &3);
         }
     }
 
     fn render(&self, shaders: &Shader) {
-        shaders.set_mat4("model", &self.model.transform);
         unsafe {
-            for i in 0..3 {
-                gl::ActiveTexture(gl::TEXTURE0 + i);
-                gl::BindTexture(gl::TEXTURE_2D, self.txs_ids[i as usize]);
-            }
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture.floor.1);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture.ceiling.1);
+            gl::ActiveTexture(gl::TEXTURE2);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture.wall.1);
+            gl::ActiveTexture(gl::TEXTURE3);
+            gl::BindTexture(gl::TEXTURE_2D, self.texture.gate.1);
         }
 
-        unsafe {
-            gl::BindVertexArray(self.model.vao);
-            gl::DrawElements(
-                gl::TRIANGLES,
-                self.indices.len() as i32,
-                gl::UNSIGNED_INT,
-                0 as _,
-            );
-        }
+        self.draw(shaders, &self.wall_model, self.wall_indices.len() as i32);
+        self.draw(
+            shaders,
+            &self.planes_model,
+            self.planes_indices.len() as i32,
+        );
     }
 
     fn update(&mut self, _delta_time: f32) {}

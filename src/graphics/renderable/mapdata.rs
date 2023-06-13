@@ -1,7 +1,5 @@
+use super::sector::{Sector as SectorMesh, TextureData, Vertex, CEILING, FLOOR, GATE, WALL};
 use super::RenderableShader;
-use crate::graphics::renderable::sector::{
-    Sector as SectorMesh, TextureData, Vertex, CEILING, FLOOR,
-};
 use crate::graphics::shader::Shader;
 use crate::utils::{get_item, index_of};
 use nalgebra_glm as ng;
@@ -64,36 +62,66 @@ impl Map {
 
             let mut corners: Vec<Corner> = Vec::new();
             let mut gates: Vec<Gate> = Vec::new();
-            let mut vertices: Vec<Vertex> = Vec::new();
-            let mut indices: Vec<u32> = Vec::new();
+
+            let mut wall_vertices: Vec<Vertex> = Vec::new();
+            let mut wall_indices: Vec<u32> = Vec::new();
+
+            let mut planes_vertices: Vec<Vertex> = Vec::new();
+            let mut planes_indices: Vec<u32> = Vec::new();
 
             //
             // Create mesh
             //
-            // Create vertices on floor and ceiling level#
+            // Create vertices on floor and ceiling level
             let mut last = (0.0, 0.0);
+            let mut diff = 0.0;
+            let mut b = true;
+            let mut fx = 0.0;
+            let mut fz = 0.0;
             for corner_json in sector_json["corners"].members_mut() {
                 let z = corner_json.pop().as_f32().unwrap();
                 let x = corner_json.pop().as_f32().unwrap();
-                let diff = f32::sqrt(f32::abs(x - last.0).powi(2) + f32::abs(z - last.1).powi(2));
-                vertices.push(Vertex {
+                if b {
+                    fx = x;
+                    fz = z;
+                    b = false;
+                } else {
+                }
+
+                diff += f32::sqrt(f32::abs(x - last.0).powi(2) + f32::abs(z - last.1).powi(2))
+                    / (ceiling - floor);
+
+                wall_vertices.push(Vertex {
                     x,
                     y: floor,
                     z: z * -1.0,
-                    s_horizontal: x,
-                    t_horizontal: z,
-                    s_vertical: diff,
-                    t_vertical: 0.0,
-                    vtype: FLOOR,
+                    s: diff,
+                    t: 0.0,
+                    vtype: WALL,
                 });
-                vertices.push(Vertex {
+                wall_vertices.push(Vertex {
                     x,
                     y: ceiling,
                     z: z * -1.0,
-                    s_horizontal: x,
-                    t_horizontal: z,
-                    s_vertical: diff,
-                    t_vertical: 1.0,
+                    s: diff,
+                    t: 1.0,
+                    vtype: WALL,
+                });
+
+                planes_vertices.push(Vertex {
+                    x,
+                    y: floor,
+                    z: z * -1.0,
+                    s: x,
+                    t: z,
+                    vtype: FLOOR,
+                });
+                planes_vertices.push(Vertex {
+                    x,
+                    y: ceiling,
+                    z: z * -1.0,
+                    s: x,
+                    t: z,
                     vtype: CEILING,
                 });
 
@@ -101,6 +129,26 @@ impl Map {
 
                 last = (x, z);
             }
+
+            // Push first vetex with different s, t to prevent the texture to have not lining up
+            diff += f32::sqrt(f32::abs(fx - last.0).powi(2) + f32::abs(fz - last.1).powi(2))
+                / (ceiling - floor);
+            wall_vertices.push(Vertex {
+                x: fx,
+                y: floor,
+                z: fz * -1.0,
+                s: diff,
+                t: 0.0,
+                vtype: WALL,
+            });
+            wall_vertices.push(Vertex {
+                x: fx,
+                y: ceiling,
+                z: fz * -1.0,
+                s: diff,
+                t: 1.0,
+                vtype: WALL,
+            });
 
             // Get Gates for Indices
             for _ in 0..sector_json["gates"].len() {
@@ -115,34 +163,24 @@ impl Map {
                 );
             }
 
-            // Create Indices
+            // Create WALL Indices
             let mut gates_index: Vec<u32> = Vec::new();
             for ele in gates.clone() {
                 gates_index.push(ele.own);
             }
 
-            //                infront of last element not
-            for i in 0..(corners.len() as u32 - 1) {
+            for i in 0..corners.len() as u32 {
                 if !gates_index.contains(&i) {
-                    indices.push(i * 2);
-                    indices.push(i * 2 + 1);
-                    indices.push(i * 2 + 2);
-                    indices.push(i * 2 + 1);
-                    indices.push(i * 2 + 3);
-                    indices.push(i * 2 + 2);
+                    wall_indices.push(i * 2);
+                    wall_indices.push(i * 2 + 1);
+                    wall_indices.push(i * 2 + 2);
+                    wall_indices.push(i * 2 + 1);
+                    wall_indices.push(i * 2 + 3);
+                    wall_indices.push(i * 2 + 2);
                 }
             }
-            // between last and first element
-            if !gates_index.contains(&(corners.len() as u32 - 1)) {
-                indices.push((corners.len() as u32 - 1) * 2);
-                indices.push((corners.len() as u32 - 1) * 2 + 1);
-                indices.push(0);
-                indices.push((corners.len() as u32 - 1) * 2 + 1);
-                indices.push(1);
-                indices.push(0);
-            }
 
-            // Floor and ceiling indices (polygon triangulation) -> Ear Clipping
+            // PLANES indices (polygon triangulation) -> Ear Clipping
             /*
             Rules:
              - ccw
@@ -221,14 +259,14 @@ impl Map {
                             let tc = index_of(&corners, c).unwrap() as u32 * 2;
 
                             // floor
-                            indices.push(ta);
-                            indices.push(tb);
-                            indices.push(tc);
+                            planes_indices.push(ta);
+                            planes_indices.push(tb);
+                            planes_indices.push(tc);
 
                             // ceiling
-                            indices.push(ta + 1);
-                            indices.push(tc + 1);
-                            indices.push(tb + 1);
+                            planes_indices.push(ta + 1);
+                            planes_indices.push(tc + 1);
+                            planes_indices.push(tb + 1);
                         } // let reference run out of scope
 
                         // Remove i from Indexlist
@@ -245,14 +283,14 @@ impl Map {
                 let tc = index_of(&corners, &index_list[2]).unwrap() as u32 * 2;
 
                 // floor
-                indices.push(ta);
-                indices.push(tb);
-                indices.push(tc);
+                planes_indices.push(ta);
+                planes_indices.push(tb);
+                planes_indices.push(tc);
 
                 // ceiling
-                indices.push(ta + 1);
-                indices.push(tc + 1);
-                indices.push(tb + 1);
+                planes_indices.push(ta + 1);
+                planes_indices.push(tc + 1);
+                planes_indices.push(tb + 1);
             }
 
             //
@@ -264,21 +302,39 @@ impl Map {
                 corners,
                 gates,
                 mesh: SectorMesh::new(
-                    vertices,
-                    indices,
+                    wall_vertices,
+                    wall_indices,
+                    planes_vertices,
+                    planes_indices,
                     TextureData {
-                        wall: match sector_json["textures"]["wall"].as_str() {
-                            Some(s) => format!("assets/textures/{s}").to_string(),
-                            None => "assets/textures/fallback.png".to_string(),
-                        },
-                        floor: match sector_json["textures"]["floor"].as_str() {
-                            Some(s) => format!("assets/textures/{s}").to_string(),
-                            None => "assets/textures/fallback.png".to_string(),
-                        },
-                        ceiling: match sector_json["textures"]["ceiling"].as_str() {
-                            Some(s) => format!("assets/textures/{s}").to_string(),
-                            None => "assets/textures/fallback.png".to_string(),
-                        },
+                        wall: (
+                            match sector_json["textures"]["wall"].as_str() {
+                                Some(s) => format!("assets/textures/{s}").to_string(),
+                                None => "assets/textures/fallback.png".to_string(),
+                            },
+                            0,
+                        ),
+                        floor: (
+                            match sector_json["textures"]["floor"].as_str() {
+                                Some(s) => format!("assets/textures/{s}").to_string(),
+                                None => "assets/textures/fallback.png".to_string(),
+                            },
+                            0,
+                        ),
+                        ceiling: (
+                            match sector_json["textures"]["ceiling"].as_str() {
+                                Some(s) => format!("assets/textures/{s}").to_string(),
+                                None => "assets/textures/fallback.png".to_string(),
+                            },
+                            0,
+                        ),
+                        gate: (
+                            match sector_json["textures"]["gate"].as_str() {
+                                Some(s) => format!("assets/textures/{s}").to_string(),
+                                None => "assets/textures/fallback.png".to_string(),
+                            },
+                            0,
+                        ),
                     },
                 ),
             };
@@ -287,116 +343,235 @@ impl Map {
         }
 
         {
+            // WALLS between sectors (Gates)
             let cpy_sectors = self.sectors.clone();
             for sector in &mut self.sectors {
                 // Indices between sectors
                 for gate in &sector.gates {
                     // Floor
                     if sector.floor > cpy_sectors[gate.target_sector as usize].floor {
-                        sector.mesh.vertices.push(Vertex {
+                        sector.mesh.wall_vertices.push(Vertex {
+                            x: sector.corners[gate.own as usize].0,
+                            y: sector.floor,
+                            z: -1.0 * sector.corners[gate.own as usize].1,
+                            s: 0.0,
+                            t: 1.0,
+                            vtype: GATE,
+                        }); // 0 top right
+
+                        sector.mesh.wall_vertices.push(Vertex {
                             x: sector.corners[gate.own as usize].0,
                             y: cpy_sectors[gate.target_sector as usize].floor,
                             z: -1.0 * sector.corners[gate.own as usize].1,
-                            s_horizontal: 0.0,
-                            t_horizontal: 0.0,
-                            s_vertical: 0.0,
-                            t_vertical: 0.0,
-                            vtype: 0,
-                        });
+                            s: 0.0,
+                            t: 0.0,
+                            vtype: GATE,
+                        }); // 1 bottom right
 
                         // if is between last and first
                         if gate.own as i32 == sector.corners.len() as i32 - 1 {
-                            sector.mesh.vertices.push(Vertex {
+                            sector.mesh.wall_vertices.push(Vertex {
+                                x: sector.corners[0].0,
+                                y: sector.floor,
+                                z: -1.0 * sector.corners[0].1,
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.floor
+                                    - cpy_sectors[gate.target_sector as usize].floor),
+                                t: 1.0,
+                                vtype: GATE,
+                            }); // 2 top left
+
+                            sector.mesh.wall_vertices.push(Vertex {
                                 x: sector.corners[0].0,
                                 y: cpy_sectors[gate.target_sector as usize].floor,
                                 z: -1.0 * sector.corners[0].1,
-                                s_horizontal: 0.0,
-                                t_horizontal: 0.0,
-                                s_vertical: 0.0,
-                                t_vertical: 0.0,
-                                vtype: 0,
-                            });
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.floor
+                                    - cpy_sectors[gate.target_sector as usize].floor),
+                                t: 0.0,
+                                vtype: GATE,
+                            }); // 3 bottom left
                         } else {
-                            sector.mesh.vertices.push(Vertex {
+                            sector.mesh.wall_vertices.push(Vertex {
+                                x: sector.corners[gate.own as usize + 1].0,
+                                y: sector.floor,
+                                z: -1.0 * sector.corners[gate.own as usize + 1].1,
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.floor
+                                    - cpy_sectors[gate.target_sector as usize].floor),
+                                t: 1.0,
+                                vtype: GATE,
+                            }); // 2 top left
+
+                            sector.mesh.wall_vertices.push(Vertex {
                                 x: sector.corners[gate.own as usize + 1].0,
                                 y: cpy_sectors[gate.target_sector as usize].floor,
                                 z: -1.0 * sector.corners[gate.own as usize + 1].1,
-                                s_horizontal: 0.0,
-                                t_horizontal: 0.0,
-                                s_vertical: 0.0,
-                                t_vertical: 0.0,
-                                vtype: 0,
-                            });
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.floor
+                                    - cpy_sectors[gate.target_sector as usize].floor),
+                                t: 0.0,
+                                vtype: GATE,
+                            }); // 3 bottom left
                         }
 
-                        let vert_len = sector.mesh.vertices.len() as u32;
-                        sector.mesh.indices.push(vert_len - 2);
-                        sector.mesh.indices.push(vert_len - 1);
-                        sector.mesh.indices.push(gate.own * 2);
+                        let offset = sector.mesh.wall_vertices.len() as u32 - 1;
+                        sector.mesh.wall_indices.push(offset);
+                        sector.mesh.wall_indices.push(offset - 1);
+                        sector.mesh.wall_indices.push(offset - 2);
 
-                        sector.mesh.indices.push(gate.own * 2);
-                        sector.mesh.indices.push(vert_len - 1);
-                        sector.mesh.indices.push(
-                            if gate.own as i32 == sector.corners.len() as i32 - 1 {
-                                0
-                            } else {
-                                gate.own * 2 + 2
-                            },
-                        );
+                        sector.mesh.wall_indices.push(offset - 1);
+                        sector.mesh.wall_indices.push(offset - 3);
+                        sector.mesh.wall_indices.push(offset - 2);
                     }
 
                     // Ceiling
                     if sector.ceiling < cpy_sectors[gate.target_sector as usize].ceiling {
-                        sector.mesh.vertices.push(Vertex {
+                        sector.mesh.wall_vertices.push(Vertex {
+                            x: sector.corners[gate.own as usize].0,
+                            y: sector.ceiling,
+                            z: -1.0 * sector.corners[gate.own as usize].1,
+                            s: 0.0,
+                            t: 1.0,
+                            vtype: GATE,
+                        }); // 0 top right
+
+                        sector.mesh.wall_vertices.push(Vertex {
                             x: sector.corners[gate.own as usize].0,
                             y: cpy_sectors[gate.target_sector as usize].ceiling,
                             z: -1.0 * sector.corners[gate.own as usize].1,
-                            s_horizontal: 0.0,
-                            t_horizontal: 0.0,
-                            s_vertical: 0.0,
-                            t_vertical: 0.0,
-                            vtype: 0,
-                        });
+                            s: 0.0,
+                            t: 0.0,
+                            vtype: GATE,
+                        }); // 1 bottom right
 
                         // if is between last and first
                         if gate.own as i32 == sector.corners.len() as i32 - 1 {
-                            sector.mesh.vertices.push(Vertex {
+                            sector.mesh.wall_vertices.push(Vertex {
+                                x: sector.corners[0].0,
+                                y: sector.ceiling,
+                                z: -1.0 * sector.corners[0].1,
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.ceiling
+                                    - cpy_sectors[gate.target_sector as usize].ceiling),
+                                t: 1.0,
+                                vtype: GATE,
+                            }); // 2 top left
+
+                            sector.mesh.wall_vertices.push(Vertex {
                                 x: sector.corners[0].0,
                                 y: cpy_sectors[gate.target_sector as usize].ceiling,
                                 z: -1.0 * sector.corners[0].1,
-                                s_horizontal: 0.0,
-                                t_horizontal: 0.0,
-                                s_vertical: 0.0,
-                                t_vertical: 0.0,
-                                vtype: 0,
-                            });
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.ceiling
+                                    - cpy_sectors[gate.target_sector as usize].ceiling),
+                                t: 0.0,
+                                vtype: GATE,
+                            }); // 3 bottom left
                         } else {
-                            sector.mesh.vertices.push(Vertex {
+                            sector.mesh.wall_vertices.push(Vertex {
+                                x: sector.corners[gate.own as usize + 1].0,
+                                y: sector.ceiling,
+                                z: -1.0 * sector.corners[gate.own as usize + 1].1,
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.ceiling
+                                    - cpy_sectors[gate.target_sector as usize].ceiling),
+                                t: 1.0,
+                                vtype: GATE,
+                            }); // 2 top left
+
+                            sector.mesh.wall_vertices.push(Vertex {
                                 x: sector.corners[gate.own as usize + 1].0,
                                 y: cpy_sectors[gate.target_sector as usize].ceiling,
                                 z: -1.0 * sector.corners[gate.own as usize + 1].1,
-                                s_horizontal: 0.0,
-                                t_horizontal: 0.0,
-                                s_vertical: 0.0,
-                                t_vertical: 0.0,
-                                vtype: 0,
-                            });
+                                s: f32::sqrt(
+                                    f32::abs(
+                                        sector.corners[0].0 - sector.corners[gate.own as usize].0,
+                                    )
+                                    .powi(2)
+                                        + f32::abs(
+                                            sector.corners[0].1
+                                                - sector.corners[gate.own as usize].1,
+                                        )
+                                        .powi(2),
+                                ) / (sector.ceiling
+                                    - cpy_sectors[gate.target_sector as usize].ceiling),
+                                t: 0.0,
+                                vtype: GATE,
+                            }); // 3 bottom left
                         }
 
-                        let vert_len = sector.mesh.vertices.len() as u32;
-                        sector.mesh.indices.push(vert_len - 2);
-                        sector.mesh.indices.push(gate.own * 2 + 1);
-                        sector.mesh.indices.push(vert_len - 1);
+                        let offset = sector.mesh.wall_vertices.len() as u32 - 1;
+                        sector.mesh.wall_indices.push(offset);
+                        sector.mesh.wall_indices.push(offset - 2);
+                        sector.mesh.wall_indices.push(offset - 1);
 
-                        sector.mesh.indices.push(gate.own * 2 + 1);
-                        sector.mesh.indices.push(
-                            if gate.own as i32 == sector.corners.len() as i32 - 1 {
-                                1
-                            } else {
-                                gate.own * 2 + 3
-                            },
-                        );
-                        sector.mesh.indices.push(vert_len - 1);
+                        sector.mesh.wall_indices.push(offset - 1);
+                        sector.mesh.wall_indices.push(offset - 2);
+                        sector.mesh.wall_indices.push(offset - 3);
                     }
                 }
             }
