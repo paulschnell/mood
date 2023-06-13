@@ -8,6 +8,8 @@ mod utils;
 
 use glfw::Context;
 
+const TITLE: &str = "mood - C++ mag niemand";
+
 const INIT_WIDTH: u32 = 1280;
 const INIT_HEIGHT: u32 = 720;
 
@@ -18,12 +20,7 @@ fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed on initilizing glfw.");
 
     let (mut window, events) = glfw
-        .create_window(
-            INIT_WIDTH,
-            INIT_HEIGHT,
-            "mood - C++ mag niemand",
-            glfw::WindowMode::Windowed,
-        )
+        .create_window(INIT_WIDTH, INIT_HEIGHT, TITLE, glfw::WindowMode::Windowed)
         .expect("Failed to create window.");
 
     window.set_key_polling(true);
@@ -38,6 +35,11 @@ fn main() {
     let wnd_last_size = window.get_size();
 
     let mut fill_mode = true;
+    let mut paused = false;
+    #[cfg(debug_assertions)]
+    let mut show_fps = true;
+    #[cfg(not(debug_assertions))]
+    let mut show_fps = false;
 
     // OpenGL
     gl::load_with(|s| window.get_proc_address(s));
@@ -56,7 +58,17 @@ fn main() {
         for (_, event) in glfw::flush_messages(&events) {
             match event {
                 glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
-                    window.set_should_close(true);
+                    // give mouse back
+                    if !paused {
+                        paused = true;
+                        graphics.pause();
+                        window.set_cursor_mode(glfw::CursorMode::Normal);
+                    } else {
+                        paused = false;
+                        graphics.unpause();
+                        window.set_cursor_mode(glfw::CursorMode::Disabled);
+                        graphics.camera.set_first_move(true);
+                    }
                 }
 
                 glfw::WindowEvent::Size(width, height) => {
@@ -64,11 +76,13 @@ fn main() {
                 }
 
                 glfw::WindowEvent::CursorPos(x, y) => {
-                    graphics.camera.cur_mov(
-                        x as f32,
-                        y as f32,
-                        CAMERA_SENSITIVITY * delta_time as f32,
-                    );
+                    if !paused {
+                        graphics.camera.cur_mov(
+                            x as f32,
+                            y as f32,
+                            CAMERA_SENSITIVITY * delta_time as f32,
+                        );
+                    }
                 }
 
                 glfw::WindowEvent::Key(
@@ -90,6 +104,20 @@ fn main() {
                     };
                 }
 
+                glfw::WindowEvent::Key(
+                    glfw::Key::P,
+                    _,
+                    glfw::Action::Press,
+                    glfw::Modifiers::Control,
+                ) => {
+                    show_fps = if show_fps {
+                        window.set_title(TITLE);
+                        false
+                    } else {
+                        true
+                    };
+                }
+
                 _ => {}
             }
         }
@@ -97,6 +125,18 @@ fn main() {
         // Update
         graphics.handle_input(delta_time as f32, &window);
         graphics.update(delta_time as f32);
+
+        if show_fps {
+            window.set_title(
+                format!(
+                    "{} | FPS: {:.5} | ms per Frame: {:.7}",
+                    TITLE,
+                    1.0 / delta_time,
+                    delta_time
+                )
+                .as_str(),
+            );
+        }
 
         window.swap_buffers();
         glfw.poll_events();

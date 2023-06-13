@@ -85,7 +85,6 @@ impl Map {
                     fx = x;
                     fz = z;
                     b = false;
-                } else {
                 }
 
                 diff += f32::sqrt(f32::abs(x - last.0).powi(2) + f32::abs(z - last.1).powi(2))
@@ -130,7 +129,7 @@ impl Map {
                 last = (x, z);
             }
 
-            // Push first vetex with different s, t to prevent the texture to have not lining up
+            // Push first vetex again with different s, t to prevent the texture to have not lining up
             diff += f32::sqrt(f32::abs(fx - last.0).powi(2) + f32::abs(fz - last.1).powi(2))
                 / (ceiling - floor);
             wall_vertices.push(Vertex {

@@ -98,4 +98,8 @@ impl Camera {
             self.up(-1.0 * speed);
         }
     }
+
+    pub fn set_first_move(&mut self, value: bool) {
+        self.first_move = value;
+    }
 }

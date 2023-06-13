@@ -9,6 +9,7 @@ use renderable::RenderableShader;
 
 pub struct Graphics {
     screen_size: Rect<u32>,
+    paused: bool,
     projection: ng::Mat4,
     pub camera: camera::Camera,
 
@@ -23,12 +24,11 @@ impl Graphics {
             gl::Enable(gl::DEPTH_TEST);
 
             gl::Enable(gl::CULL_FACE);
-            // gl::CullFace(gl::BACK);
-            // gl::FrontFace(gl::CCW);
         }
 
         let mut graphics = Graphics {
             screen_size: Rect::new(0, 0, crate::INIT_WIDTH, crate::INIT_HEIGHT),
+            paused: false,
             projection: ng::perspective(
                 crate::INIT_WIDTH as f32 / crate::INIT_HEIGHT as f32,
                 45.0 * ng::pi::<f32>() / 180.0,
@@ -46,7 +46,7 @@ impl Graphics {
 
         graphics
             .map
-            .load_from_file("test.json", &graphics.map_shader);
+            .load_from_file("test2.json", &graphics.map_shader);
 
         graphics.camera.put(
             graphics.map.spawn.0,
@@ -60,14 +60,19 @@ impl Graphics {
     }
 
     pub fn update(&mut self, delta_time: f32) {
-        self.map.update(delta_time);
+        if !self.paused {
+            self.map.update(delta_time);
+        }
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
-        self.map_shader.use_program();
-        self.map_shader.set_mat4("projection", &self.projection);
-        self.map_shader.set_mat4("view", &self.camera.view());
+
+        if !self.paused {
+            self.map_shader.use_program();
+            self.map_shader.set_mat4("projection", &self.projection);
+            self.map_shader.set_mat4("view", &self.camera.view());
+        }
 
         self.map.render(&self.map_shader);
     }
@@ -85,5 +90,17 @@ impl Graphics {
     pub fn handle_input(&mut self, delta_time: f32, window: &glfw::Window) {
         self.camera
             .track_input(&window, crate::CAMERA_SPEED * delta_time as f32);
+    }
+
+    pub fn pause(&mut self) {
+        self.map_shader.use_program();
+        self.map_shader.set_i32("bPause", &1);
+        self.paused = true;
+    }
+
+    pub fn unpause(&mut self) {
+        self.map_shader.use_program();
+        self.map_shader.set_i32("bPause", &0);
+        self.paused = false;
     }
 }

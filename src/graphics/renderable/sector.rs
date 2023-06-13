@@ -218,6 +218,7 @@ impl RenderableShader for Sector {
     }
 
     fn render(&self, shaders: &Shader) {
+        shaders.use_program();
         unsafe {
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.texture.floor.1);

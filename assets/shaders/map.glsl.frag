@@ -15,6 +15,7 @@ uniform sampler2D tx_floor;
 uniform sampler2D tx_ceiling;
 uniform sampler2D tx_wall;
 uniform sampler2D tx_gate;
+uniform int bPause;
 
 out vec4 color;
 
@@ -29,5 +30,9 @@ void main() {
         color = texture2D(tx_gate,fs_in.uv);
     } else if (fs_in.vtype == UNDEFINED) {
         color = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+
+    if (bPause == 1) {
+        color *= vec4(0.2, 0.2, 0.2, 1.0);
     }
 }
