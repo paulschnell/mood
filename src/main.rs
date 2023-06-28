@@ -4,6 +4,7 @@ extern crate image;
 extern crate nalgebra_glm;
 
 pub mod graphics;
+mod player;
 mod utils;
 
 use glfw::Context;
@@ -12,9 +13,6 @@ const TITLE: &str = "mood - C++ mag niemand";
 
 const INIT_WIDTH: u32 = 1280;
 const INIT_HEIGHT: u32 = 720;
-
-const CAMERA_SPEED: f32 = 2.5;
-const CAMERA_SENSITIVITY: f32 = 7.0;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("Failed on initilizing glfw.");
@@ -47,6 +45,8 @@ fn main() {
     let mut graphics = graphics::Graphics::init();
     graphics.resize(wnd_last_size.0 as u32, wnd_last_size.1 as u32);
 
+    let mut player = player::Player::new(graphics.spawn());
+
     let mut pre_time = glfw.get_time();
     // Main loop
     while !window.should_close() {
@@ -67,7 +67,6 @@ fn main() {
                         paused = false;
                         graphics.unpause();
                         window.set_cursor_mode(glfw::CursorMode::Disabled);
-                        graphics.camera.set_first_move(true);
                     }
                 }
 
@@ -77,11 +76,7 @@ fn main() {
 
                 glfw::WindowEvent::CursorPos(x, y) => {
                     if !paused {
-                        graphics.camera.cur_mov(
-                            x as f32,
-                            y as f32,
-                            CAMERA_SENSITIVITY * delta_time as f32,
-                        );
+                        player.mouse_input(x, y, delta_time);
                     }
                 }
 
@@ -118,13 +113,22 @@ fn main() {
                     };
                 }
 
+                glfw::WindowEvent::Key(
+                    glfw::Key::S,
+                    _,
+                    glfw::Action::Press,
+                    glfw::Modifiers::Control,
+                ) => {
+                    player.toggle_spectator();
+                }
+
                 _ => {}
             }
         }
 
         // Update
-        graphics.handle_input(delta_time as f32, &window);
-        graphics.update(delta_time as f32);
+        player.key_input(&window, delta_time, graphics.map());
+        graphics.update(delta_time as f32, &player.cam_view());
 
         if show_fps {
             window.set_title(

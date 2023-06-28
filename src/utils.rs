@@ -1,5 +1,5 @@
-pub fn deg_to_rad(deg: f32) -> f32 {
-    deg * nalgebra_glm::pi::<f32>() / 180.0
+pub fn deg_to_rad(deg: f64) -> f64 {
+    deg * nalgebra_glm::pi::<f64>() / 180.0
 }
 
 pub struct Rect<T> {
@@ -57,4 +57,59 @@ pub fn index_of<T: std::cmp::PartialEq>(list: &Vec<T>, element: &T) -> Option<us
         }
     }
     None
+}
+
+pub struct Line {
+    pub x0: f64,
+    pub y0: f64,
+    pub x1: f64,
+    pub y1: f64,
+}
+
+impl Line {
+    pub fn new(x0: f64, y0: f64, x1: f64, y1: f64) -> Self {
+        Line { x0, y0, x1, y1 }
+    }
+
+    pub fn new_tuples(pos0: (f64, f64), pos1: (f64, f64)) -> Self {
+        Line {
+            x0: pos0.0,
+            y0: pos0.1,
+            x1: pos1.0,
+            y1: pos1.1,
+        }
+    }
+
+    pub fn crosses(&self, other: &Line) -> bool {
+        let line0 = self.clone();
+        let line1 = other.clone();
+        let m0 = (line0.y1 - line0.y0) / (line0.x1 - line0.x0);
+        let b0 = line0.y1 - m0 * line0.x1;
+
+        let m1 = (line1.y1 - line1.y0) / (line1.x1 - line1.x0);
+        let b1 = line1.y1 - m1 * line1.x1;
+
+        if m0 == m1 {
+            return false;
+        }
+
+        if line0.x1 == line0.x0 {
+            let ys = m1 * line0.x1 + b1;
+            if (line1.y0 < ys && ys < line1.y1) || (line1.y0 > ys && ys > line1.y1) {
+                return true;
+            }
+        } else if line1.x1 == line1.x0 {
+            let ys = m0 * line1.x1 + b0;
+            if (line0.y0 < ys && ys < line0.y1) || (line0.y0 > ys && ys > line0.y1) {
+                return true;
+            }
+        } else {
+            let xs = (b1 - b0) / (m0 - m1);
+            if (line1.x0 < xs && xs < line1.x1) || (line1.x0 > xs && xs > line1.x1) {
+                return true;
+            }
+        }
+
+        false
+    }
 }

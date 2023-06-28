@@ -1,5 +1,5 @@
-mod camera;
-mod renderable;
+pub mod camera;
+pub mod renderable;
 mod shader;
 
 use crate::utils::Rect;
@@ -11,7 +11,6 @@ pub struct Graphics {
     screen_size: Rect<u32>,
     paused: bool,
     projection: ng::Mat4,
-    pub camera: camera::Camera,
 
     map_shader: shader::Shader,
     map: Map,
@@ -35,7 +34,6 @@ impl Graphics {
                 0.001,
                 100.0,
             ),
-            camera: camera::Camera::new(),
 
             map_shader: shader::Shader::new(
                 "assets/shaders/map.glsl.vert",
@@ -48,18 +46,10 @@ impl Graphics {
             .map
             .load_from_file("test2.json", &graphics.map_shader);
 
-        graphics.camera.put(
-            graphics.map.spawn.0,
-            graphics.map.spawn.1,
-            -1.0 * graphics.map.spawn.2,
-            0.0,
-            0.0,
-        );
-
         graphics
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, delta_time: f32, view: &ng::Mat4) {
         if !self.paused {
             self.map.update(delta_time);
         }
@@ -71,7 +61,7 @@ impl Graphics {
         if !self.paused {
             self.map_shader.use_program();
             self.map_shader.set_mat4("projection", &self.projection);
-            self.map_shader.set_mat4("view", &self.camera.view());
+            self.map_shader.set_mat4("view", view);
         }
 
         self.map.render(&self.map_shader);
@@ -87,11 +77,6 @@ impl Graphics {
         self.screen_size.bottom = height;
     }
 
-    pub fn handle_input(&mut self, delta_time: f32, window: &glfw::Window) {
-        self.camera
-            .track_input(&window, crate::CAMERA_SPEED * delta_time as f32);
-    }
-
     pub fn pause(&mut self) {
         self.map_shader.use_program();
         self.map_shader.set_i32("bPause", &1);
@@ -102,5 +87,13 @@ impl Graphics {
         self.map_shader.use_program();
         self.map_shader.set_i32("bPause", &0);
         self.paused = false;
+    }
+
+    pub fn spawn(&self) -> (f32, f32, f32) {
+        self.map.spawn
+    }
+
+    pub fn map(&self) -> &Map {
+        &self.map
     }
 }
