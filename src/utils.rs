@@ -93,12 +93,16 @@ impl Line {
 
         if self.x1 == self.x0 {
             let ys = m1 * self.x1 + b1;
-            if (other.y0 < ys && ys < other.y1) || (other.y0 > ys && ys > other.y1) {
+            if ((other.y0 < ys && ys < other.y1) || (other.y0 > ys && ys > other.y1))
+                && ((self.y0 < ys && ys < self.y1) || (self.y0 > ys && ys > self.y1))
+            {
                 return true;
             }
         } else if other.x1 == other.x0 {
             let ys = m0 * other.x1 + b0;
-            if (self.y0 < ys && ys < self.y1) || (self.y0 > ys && ys > self.y1) {
+            if ((other.y0 < ys && ys < other.y1) || (other.y0 > ys && ys > other.y1))
+                && ((self.y0 < ys && ys < self.y1) || (self.y0 > ys && ys > self.y1))
+            {
                 return true;
             }
         } else {

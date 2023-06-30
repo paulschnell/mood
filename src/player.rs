@@ -1,5 +1,5 @@
 use crate::graphics::camera::{Camera, UP};
-use crate::graphics::renderable::mapdata::Map;
+use crate::graphics::renderable::mapdata::{Corner, Map};
 use crate::utils::Line;
 use nalgebra_glm as ng;
 
@@ -152,14 +152,13 @@ impl Player {
             );
 
             let sector = &map.sectors[self.cur_sector as usize];
-            for i in 0..sector.gates.len() {
-                let gate = &sector.gates[i];
-                let corner0 = &sector.corners[gate.own as usize];
-                let corner1 = if gate.own as usize + 1 < sector.corners.len() {
-                    &sector.corners[gate.own as usize + 1]
+            for i in 0..sector.corners.len() {
+                let corner0 = &sector.corners[i];
+                let corner1 = &sector.corners[if i + 1 == sector.corners.len() {
+                    0
                 } else {
-                    &sector.corners[0]
-                };
+                    i + 1
+                }];
 
                 if Line::new_tuples(cur_pos, self.next_pos).crosses(&Line::new(
                     corner0.0 as f64,
@@ -167,12 +166,23 @@ impl Player {
                     corner1.0 as f64,
                     corner1.1 as f64 * -1.0,
                 )) {
-                    // Collision with smaller sector
-                    let entering = &map.sectors[gate.target_sector as usize];
-                    if entering.ceiling - entering.floor > PLAYER_HEIGHT {
-                        self.cur_sector = gate.target_sector;
-                    } else {
-                        // Cancel Move
+                    // Check if collided with a gate
+                    let mut is_gate = false;
+                    for gate in &sector.gates {
+                        if i == gate.own as usize {
+                            is_gate = true;
+                            let entering = &map.sectors[gate.target_sector as usize];
+                            if entering.ceiling - entering.floor > PLAYER_HEIGHT {
+                                self.cur_sector = gate.target_sector;
+                            } else {
+                                // Cancel Move
+                                mov_change = ng::DVec3::zeros();
+                            }
+                            break;
+                        }
+                    }
+
+                    if !is_gate {
                         mov_change = ng::DVec3::zeros();
                     }
                     break;
