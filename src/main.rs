@@ -9,7 +9,7 @@ mod utils;
 
 use glfw::Context;
 
-const TITLE: &str = "mood - C++ mag niemand";
+const TITLE: &str = "mooD - C++ mag niemand";
 
 const INIT_WIDTH: u32 = 1280;
 const INIT_HEIGHT: u32 = 720;
