@@ -1,5 +1,5 @@
 use crate::graphics::camera::{Camera, UP};
-use crate::graphics::renderable::mapdata::{Corner, Map};
+use crate::graphics::renderable::mapdata::Map;
 use crate::utils::Line;
 use nalgebra_glm as ng;
 
@@ -146,56 +146,56 @@ impl Player {
         }
 
         if mov_change != ng::DVec3::zeros() {
-            self.next_pos = (
-                (*self.camera.pos() + mov_change).x,
-                (*self.camera.pos() + mov_change).z,
-            );
+            if !self.spectator {
+                self.next_pos = (
+                    (*self.camera.pos() + mov_change).x,
+                    (*self.camera.pos() + mov_change).z,
+                );
 
-            let sector = &map.sectors[self.cur_sector as usize];
-            for i in 0..sector.corners.len() {
-                let corner0 = &sector.corners[i];
-                let corner1 = &sector.corners[if i + 1 == sector.corners.len() {
-                    0
-                } else {
-                    i + 1
-                }];
+                let sector = &map.sectors[self.cur_sector as usize];
+                for i in 0..sector.corners.len() {
+                    let corner0 = &sector.corners[i];
+                    let corner1 = &sector.corners[if i + 1 == sector.corners.len() {
+                        0
+                    } else {
+                        i + 1
+                    }];
 
-                if Line::new_tuples(cur_pos, self.next_pos).crosses(&Line::new(
-                    corner0.0 as f64,
-                    corner0.1 as f64 * -1.0,
-                    corner1.0 as f64,
-                    corner1.1 as f64 * -1.0,
-                )) {
-                    // Check if collided with a gate
-                    let mut is_gate = false;
-                    for gate in &sector.gates {
-                        if i == gate.own as usize {
-                            is_gate = true;
-                            let entering = &map.sectors[gate.target_sector as usize];
-                            if entering.ceiling - entering.floor > PLAYER_HEIGHT {
-                                self.cur_sector = gate.target_sector;
-                            } else {
-                                // Cancel Move
-                                mov_change = ng::DVec3::zeros();
+                    if Line::new_tuples(cur_pos, self.next_pos).crosses(&Line::new(
+                        corner0.0 as f64,
+                        corner0.1 as f64 * -1.0,
+                        corner1.0 as f64,
+                        corner1.1 as f64 * -1.0,
+                    )) {
+                        // Check if collided with a gate
+                        let mut is_gate = false;
+                        for gate in &sector.gates {
+                            if i == gate.own as usize {
+                                is_gate = true;
+                                let entering = &map.sectors[gate.target_sector as usize];
+                                if entering.ceiling - entering.floor > PLAYER_HEIGHT {
+                                    self.cur_sector = gate.target_sector;
+                                } else {
+                                    // Cancel Move
+                                    mov_change = ng::DVec3::zeros();
+                                }
+                                break;
                             }
-                            break;
                         }
-                    }
 
-                    if !is_gate {
-                        mov_change = ng::DVec3::zeros();
+                        if !is_gate {
+                            mov_change = ng::DVec3::zeros();
+                        }
+                        break;
                     }
-                    break;
                 }
+
+                let sector = &map.sectors[self.cur_sector as usize];
+                // Put onto ground
+                self.camera.put_y((sector.floor + PLAYER_HEIGHT) as f64);
             }
 
             *self.camera.pos() += mov_change; // Move
-            let sector = &map.sectors[self.cur_sector as usize];
-
-            // Put onto ground
-            if !self.spectator {
-                self.camera.put_y((sector.floor + PLAYER_HEIGHT) as f64);
-            }
         }
     }
 
