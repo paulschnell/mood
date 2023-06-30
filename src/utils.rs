@@ -81,31 +81,34 @@ impl Line {
     }
 
     pub fn crosses(&self, other: &Line) -> bool {
-        let line0 = self.clone();
-        let line1 = other.clone();
-        let m0 = (line0.y1 - line0.y0) / (line0.x1 - line0.x0);
-        let b0 = line0.y1 - m0 * line0.x1;
+        let m0 = (self.y1 - self.y0) / (self.x1 - self.x0);
+        let b0 = self.y1 - m0 * self.x1;
 
-        let m1 = (line1.y1 - line1.y0) / (line1.x1 - line1.x0);
-        let b1 = line1.y1 - m1 * line1.x1;
+        let m1 = (other.y1 - other.y0) / (other.x1 - other.x0);
+        let b1 = other.y1 - m1 * other.x1;
 
         if m0 == m1 {
             return false;
         }
 
-        if line0.x1 == line0.x0 {
-            let ys = m1 * line0.x1 + b1;
-            if (line1.y0 < ys && ys < line1.y1) || (line1.y0 > ys && ys > line1.y1) {
+        if self.x1 == self.x0 {
+            let ys = m1 * self.x1 + b1;
+            if (other.y0 < ys && ys < other.y1) || (other.y0 > ys && ys > other.y1) {
                 return true;
             }
-        } else if line1.x1 == line1.x0 {
-            let ys = m0 * line1.x1 + b0;
-            if (line0.y0 < ys && ys < line0.y1) || (line0.y0 > ys && ys > line0.y1) {
+        } else if other.x1 == other.x0 {
+            let ys = m0 * other.x1 + b0;
+            if (self.y0 < ys && ys < self.y1) || (self.y0 > ys && ys > self.y1) {
                 return true;
             }
         } else {
-            let xs = (b1 - b0) / (m0 - m1);
-            if (line1.x0 < xs && xs < line1.x1) || (line1.x0 > xs && xs > line1.x1) {
+            let xs = (b0 - b1) / (m1 - m0);
+            let ys = m0 * xs + b0;
+            if ((other.x0 < xs && xs < other.x1) || (other.x0 > xs && xs > other.x1))
+                && ((other.y0 < ys && ys < other.y1) || (other.y0 > ys && ys > other.y1))
+                && ((self.x0 < xs && xs < self.x1) || (self.x0 > xs && xs > self.x1))
+                && ((self.y0 < ys && ys < self.y1) || (self.y0 > ys && ys > self.y1))
+            {
                 return true;
             }
         }

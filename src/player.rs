@@ -19,7 +19,7 @@ pub struct Player {
     grounded: bool,
 
     cur_sector: u32,
-    last_pos: (f64, f64),
+    next_pos: (f64, f64),
 }
 
 impl Player {
@@ -30,7 +30,7 @@ impl Player {
             grounded: false,
 
             cur_sector: 0,
-            last_pos: (spawn.0 as f64, spawn.2 as f64 * -1.0),
+            next_pos: (spawn.0 as f64, spawn.2 as f64 * -1.0),
         };
 
         player.camera.put(
@@ -54,12 +54,12 @@ impl Player {
 
     pub fn key_input(&mut self, window: &glfw::Window, delta_time: f64, map: &Map) {
         let xz_front = &self.camera.xz_front();
-        let mut moved = false;
         let cur_pos = (self.camera.pos().x, self.camera.pos().z);
 
+        let mut mov_change = ng::DVec3::zeros();
+
         if window.get_key(glfw::Key::W) == glfw::Action::Press {
-            moved = true;
-            *self.camera.pos() += xz_front
+            mov_change += xz_front
                 * delta_time
                 * if self.spectator {
                     FLY_SPEED
@@ -77,8 +77,7 @@ impl Player {
         }
 
         if window.get_key(glfw::Key::S) == glfw::Action::Press {
-            moved = true;
-            *self.camera.pos() -= xz_front
+            mov_change += xz_front
                 * delta_time
                 * if self.spectator {
                     FLY_SPEED
@@ -92,12 +91,12 @@ impl Player {
                             1.0
                         }
                 }
-                * SPEED_FAC;
+                * SPEED_FAC
+                * -1.0;
         }
 
         if window.get_key(glfw::Key::D) == glfw::Action::Press {
-            moved = true;
-            *self.camera.pos() += ng::normalize(&ng::cross(xz_front, &UP))
+            mov_change += ng::normalize(&ng::cross(xz_front, &UP))
                 * delta_time
                 * if self.spectator {
                     FLY_SPEED
@@ -115,8 +114,7 @@ impl Player {
         }
 
         if window.get_key(glfw::Key::A) == glfw::Action::Press {
-            moved = true;
-            *self.camera.pos() -= ng::normalize(&ng::cross(xz_front, &UP))
+            mov_change += ng::normalize(&ng::cross(xz_front, &UP))
                 * delta_time
                 * if self.spectator {
                     FLY_SPEED
@@ -130,25 +128,29 @@ impl Player {
                             1.0
                         }
                 }
-                * SPEED_FAC;
+                * SPEED_FAC
+                * -1.0;
         }
 
         if window.get_key(glfw::Key::Space) == glfw::Action::Press {
-            moved = true;
             if self.spectator {
-                *self.camera.pos() += UP * delta_time * FLY_SPEED * SPEED_FAC;
+                mov_change += UP * delta_time * FLY_SPEED * SPEED_FAC;
             } else if self.grounded {
                 self.jump();
             }
         }
         if window.get_key(glfw::Key::LeftShift) == glfw::Action::Press {
-            moved = true;
             if self.spectator {
-                *self.camera.pos() -= UP * delta_time * FLY_SPEED * SPEED_FAC;
+                mov_change += UP * delta_time * FLY_SPEED * SPEED_FAC * -1.0;
             }
         }
 
-        if moved {
+        if mov_change != ng::DVec3::zeros() {
+            self.next_pos = (
+                (*self.camera.pos() + mov_change).x,
+                (*self.camera.pos() + mov_change).z,
+            );
+
             let sector = &map.sectors[self.cur_sector as usize];
             for i in 0..sector.gates.len() {
                 let gate = &sector.gates[i];
@@ -159,30 +161,31 @@ impl Player {
                     &sector.corners[0]
                 };
 
-                if Line::new_tuples(cur_pos, self.last_pos).crosses(&Line::new(
+                if Line::new_tuples(cur_pos, self.next_pos).crosses(&Line::new(
                     corner0.0 as f64,
-                    corner0.1 as f64,
+                    corner0.1 as f64 * -1.0,
                     corner1.0 as f64,
-                    corner1.1 as f64,
+                    corner1.1 as f64 * -1.0,
                 )) {
                     // Collision with smaller sector
                     let entering = &map.sectors[gate.target_sector as usize];
                     if entering.ceiling - entering.floor > PLAYER_HEIGHT {
                         self.cur_sector = gate.target_sector;
                     } else {
-                        // self.camera.put_xz(self.last_pos.0, self.last_pos.1);
+                        // Cancel Move
+                        mov_change = ng::DVec3::zeros();
                     }
                     break;
                 }
             }
+
+            *self.camera.pos() += mov_change; // Move
             let sector = &map.sectors[self.cur_sector as usize];
 
             // Put onto ground
             if !self.spectator {
                 self.camera.put_y((sector.floor + PLAYER_HEIGHT) as f64);
             }
-
-            self.last_pos = cur_pos;
         }
     }
 
