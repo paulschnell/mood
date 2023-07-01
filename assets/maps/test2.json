@@ -100,5 +100,8 @@
                 "gate": "test/ceiling.png"
             }
         }
+	],
+	"enemies": [
+		{ "id": 0, "pos": [0.0, 0.0, 0.0], "area": 0, "sector": 0 }
 	]
 }

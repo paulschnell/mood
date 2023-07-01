@@ -4,8 +4,8 @@ extern crate image;
 extern crate nalgebra_glm;
 
 pub mod graphics;
-mod player;
 mod utils;
+mod entity;
 
 use glfw::Context;
 
@@ -45,7 +45,9 @@ fn main() {
     let mut graphics = graphics::Graphics::init();
     graphics.resize(wnd_last_size.0 as u32, wnd_last_size.1 as u32);
 
-    let mut player = player::Player::new(graphics.spawn());
+    let mut player = entity::player::Player::new(graphics.spawn());
+
+    entity::load();
 
     let mut pre_time = glfw.get_time();
     // Main loop
@@ -128,6 +130,7 @@ fn main() {
 
         // Update
         player.key_input(&window, delta_time, graphics.map());
+        entity::update();
         graphics.update(delta_time as f32, &player.cam_view());
 
         if show_fps {
@@ -146,5 +149,6 @@ fn main() {
         glfw.poll_events();
     }
 
+    entity::destroy();
     graphics.destroy();
 }
