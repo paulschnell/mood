@@ -1,4 +1,4 @@
-use super::{Model, RenderableShader, create_texture};
+use super::{create_texture, Model, RenderableShader};
 use crate::graphics::shader::Shader;
 
 pub const _UNDEFINED: u32 = 0;

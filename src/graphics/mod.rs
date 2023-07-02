@@ -84,7 +84,7 @@ impl Graphics {
         unsafe {
             gl::Disable(gl::BLEND);
         }
-        
+
         unsafe {
             gl::Disable(gl::DEPTH_TEST);
         }

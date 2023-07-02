@@ -1,5 +1,5 @@
-use nalgebra_glm as ng;
 use image::io::Reader as ImageReader;
+use nalgebra_glm as ng;
 
 pub mod gui;
 pub mod mapdata;

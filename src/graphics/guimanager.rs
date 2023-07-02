@@ -117,11 +117,7 @@ impl GuiManager {
         // set z
         for i in 0..5 {
             for j in 0..4 {
-                data[i * 4 + j].z = if i as isize >= num as isize {
-                    0.0
-                } else {
-                    0.2
-                } * -1.0;
+                data[i * 4 + j].z = if i as isize >= num as isize { 0.0 } else { 0.2 } * -1.0;
             }
         }
 
