@@ -17,6 +17,7 @@ pub struct Player {
     camera: Camera,
     spectator: bool,
     grounded: bool,
+    health: i32, // max. 5
 
     cur_sector: u32,
     next_pos: (f64, f64),
@@ -28,6 +29,7 @@ impl Player {
             camera: Camera::new(),
             spectator: false,
             grounded: false,
+            health: 5,
 
             cur_sector: 0,
             next_pos: (spawn.0 as f64, spawn.2 as f64 * -1.0),
@@ -203,5 +205,16 @@ impl Player {
 
     pub fn toggle_spectator(&mut self) {
         self.spectator = !self.spectator;
+    }
+
+    pub fn damage(&mut self, damage: i32, gui: &crate::graphics::guimanager::GuiManager) {
+        self.health -= damage;
+
+        // Update Healthbar
+        gui.set_hp(if self.health >= 0 {
+            self.health as u32
+        } else {
+            0
+        });
     }
 }

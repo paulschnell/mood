@@ -22,11 +22,11 @@ fn main() {
         .expect("Failed to create window.");
 
     window.set_key_polling(true);
-    window.set_size_polling(true);
     window.set_cursor_pos_polling(true);
     window.set_scroll_polling(true);
 
     window.set_cursor_mode(glfw::CursorMode::Disabled);
+    window.set_resizable(false);
 
     window.make_current();
 
@@ -120,6 +120,15 @@ fn main() {
                     glfw::Modifiers::Control,
                 ) => {
                     player.toggle_spectator();
+                }
+
+                glfw::WindowEvent::Key(
+                    glfw::Key::H,
+                    _,
+                    glfw::Action::Press,
+                    glfw::Modifiers::Control,
+                ) => {
+                    player.damage(1, graphics.gui_manager());
                 }
 
                 _ => {}

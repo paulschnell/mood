@@ -105,6 +105,20 @@ impl Line {
             {
                 return true;
             }
+        } else if self.y1 == self.y0 {
+            let xs = (self.y0 - b0) / m0;
+            if ((other.x0 < xs && xs < other.x1) || (other.x0 > xs && xs > other.x1))
+                && ((self.x0 < xs && xs < self.x1) || (self.x0 > xs && xs > self.x1))
+            {
+                return true;
+            }
+        } else if other.y1 == other.y0 {
+            let xs = (other.y0 - b0) / m0;
+            if ((other.x0 < xs && xs < other.x1) || (other.x0 > xs && xs > other.x1))
+                && ((self.x0 < xs && xs < self.x1) || (self.x0 > xs && xs > self.x1))
+            {
+                return true;
+            }
         } else {
             let xs = (b0 - b1) / (m1 - m0);
             let ys = m0 * xs + b0;
