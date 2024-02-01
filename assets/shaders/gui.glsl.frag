@@ -9,5 +9,5 @@ uniform sampler2D atlas;
 out vec4 color;
 
 void main() {
-    color = texture2D(atlas, fs_in.uv);
+    color = texture(atlas, fs_in.uv);
 }
